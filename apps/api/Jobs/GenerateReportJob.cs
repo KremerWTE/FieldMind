@@ -29,6 +29,7 @@ public class GenerateReportJob
         var context = scope.ServiceProvider.GetRequiredService<FieldMindDbContext>();
         var pdfService = scope.ServiceProvider.GetRequiredService<PDFReportService>();
         var s3Service = scope.ServiceProvider.GetRequiredService<S3StorageService>();
+        var emailService = scope.ServiceProvider.GetRequiredService<EmailService>();
 
         try
         {
@@ -87,6 +88,9 @@ public class GenerateReportJob
 
             _logger.LogInformation("Report generation completed for job {JobId}, S3 key: {S3Key}",
                 reportJobId, s3Key);
+
+            // Send email notification
+            await SendReportReadyNotification(context, reportJob, emailService);
         }
         catch (Exception ex)
         {
@@ -146,5 +150,61 @@ public class GenerateReportJob
     private string GetS3BucketName()
     {
         return _configuration["AWS:S3Bucket"] ?? "fieldmind-photos-dev";
+    }
+
+    private async Task SendReportReadyNotification(
+        FieldMindDbContext context,
+        ReportJob reportJob,
+        EmailService emailService)
+    {
+        try
+        {
+            // Get user who requested the report
+            var user = await context.Users
+                .FirstOrDefaultAsync(u => u.Id == reportJob.CreatedById);
+
+            if (user == null)
+            {
+                _logger.LogWarning("User {UserId} not found for report notification", reportJob.CreatedById);
+                return;
+            }
+
+            // Get entity name based on report type
+            string entityName = "Report";
+            switch (reportJob.Type)
+            {
+                case ReportType.Building:
+                    var building = await context.Buildings
+                        .FirstOrDefaultAsync(b => b.Id == reportJob.EntityId);
+                    entityName = building?.Name ?? "Building";
+                    break;
+                case ReportType.Project:
+                    var project = await context.Projects
+                        .FirstOrDefaultAsync(p => p.Id == reportJob.EntityId);
+                    entityName = project?.Name ?? "Project";
+                    break;
+                case ReportType.Folder:
+                    var folder = await context.Folders
+                        .FirstOrDefaultAsync(f => f.Id == reportJob.EntityId);
+                    entityName = folder?.Name ?? "Folder";
+                    break;
+            }
+
+            await emailService.SendReportReadyNotification(
+                user.Email,
+                $"{user.FirstName} {user.LastName}",
+                reportJob.Type.ToString(),
+                entityName,
+                reportJob.DownloadUrl ?? ""
+            );
+
+            _logger.LogInformation("Sent report ready notification for job {JobId} to {Email}",
+                reportJob.Id, user.Email);
+        }
+        catch (Exception ex)
+        {
+            // Don't fail the job if email fails
+            _logger.LogError(ex, "Failed to send report ready notification for job {JobId}", reportJob.Id);
+        }
     }
 }

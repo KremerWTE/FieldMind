@@ -25,6 +25,7 @@ public class PhotoAIAnalysisJob
         var context = scope.ServiceProvider.GetRequiredService<FieldMindDbContext>();
         var s3Service = scope.ServiceProvider.GetRequiredService<S3StorageService>();
         var aiService = scope.ServiceProvider.GetRequiredService<AIService>();
+        var emailService = scope.ServiceProvider.GetRequiredService<EmailService>();
 
         try
         {
@@ -95,7 +96,7 @@ public class PhotoAIAnalysisJob
                 photoId, severityScore);
 
             // Auto-create maintenance event if high/critical severity
-            await CreateMaintenanceEventIfNeeded(context, photo, aiOutput, annotation);
+            await CreateMaintenanceEventIfNeeded(context, photo, aiOutput, annotation, severityScore, emailService);
 
             // Update building health stats
             await UpdateBuildingHealthStats(context, photo, aiOutput);
@@ -150,7 +151,9 @@ public class PhotoAIAnalysisJob
         FieldMindDbContext context,
         Photo photo,
         VisionAnnotationOutput aiOutput,
-        AiAnnotation annotation)
+        AiAnnotation annotation,
+        int severityScore,
+        EmailService emailService)
     {
         // Create maintenance event for high/critical severity issues
         var criticalIssues = aiOutput.DetectedIssues
@@ -184,6 +187,44 @@ public class PhotoAIAnalysisJob
 
         _logger.LogWarning("Auto-created maintenance event {EventId} for photo {PhotoId} due to {Severity} severity issues",
             maintenanceEvent.Id, photo.Id, highestSeverity);
+
+        // Send email notification for critical issues (severity >= 75)
+        if (severityScore >= 75)
+        {
+            try
+            {
+                // Get building and uploaded user info
+                var building = await context.Buildings
+                    .FirstOrDefaultAsync(b => b.Id == photo.BuildingId);
+
+                var uploadedBy = await context.Users
+                    .Include(u => u.Team)
+                    .FirstOrDefaultAsync(u => u.Id == photo.UploadedById);
+
+                if (building != null && uploadedBy != null)
+                {
+                    // Generate photo URL (you may want to make this a public share link or presigned URL)
+                    var photoUrl = $"{Environment.GetEnvironmentVariable("FRONTEND_URL") ?? "http://localhost:3000"}/photos/{photo.Id}";
+
+                    await emailService.SendCriticalIssueAlert(
+                        uploadedBy.Email,
+                        $"{uploadedBy.FirstName} {uploadedBy.LastName}",
+                        building.Name,
+                        issueDescriptions,
+                        severityScore,
+                        photoUrl
+                    );
+
+                    _logger.LogInformation("Sent critical issue alert email for photo {PhotoId} to {Email}",
+                        photo.Id, uploadedBy.Email);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Don't fail the job if email fails
+                _logger.LogError(ex, "Failed to send critical issue alert email for photo {PhotoId}", photo.Id);
+            }
+        }
     }
 
     private async Task UpdateBuildingHealthStats(

@@ -16,7 +16,9 @@
       "Bash(dotnet list:*)",
       "Bash(dotnet remove package:*)",
       "Bash(dotnet ef:*)",
-      "Bash(dotnet tool install:*)"
+      "Bash(dotnet tool install:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker compose:*)"
     ]
   }
 }

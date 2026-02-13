@@ -1,0 +1,269 @@
+using MailKit.Net.Smtp;
+using MailKit.Security;
+using MimeKit;
+
+namespace FieldMind.Api.Services;
+
+public enum EmailTemplate
+{
+    CriticalIssueAlert,
+    ReportReady,
+    ShareLinkCreated,
+    WelcomeEmail,
+    MaintenanceEventCreated
+}
+
+public class EmailService
+{
+    private readonly IConfiguration _configuration;
+    private readonly ILogger<EmailService> _logger;
+
+    public EmailService(IConfiguration configuration, ILogger<EmailService> logger)
+    {
+        _configuration = configuration;
+        _logger = logger;
+    }
+
+    public async Task SendEmailAsync(
+        string toEmail,
+        string toName,
+        string subject,
+        string htmlBody,
+        string? textBody = null)
+    {
+        var smtpEnabled = _configuration.GetValue<bool>("Email:Enabled");
+        if (!smtpEnabled)
+        {
+            _logger.LogInformation("Email sending disabled. Would send to {Email}: {Subject}", toEmail, subject);
+            return;
+        }
+
+        try
+        {
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress(
+                _configuration["Email:FromName"] ?? "FieldMind",
+                _configuration["Email:FromAddress"] ?? "noreply@fieldmind.io"
+            ));
+            message.To.Add(new MailboxAddress(toName, toEmail));
+            message.Subject = subject;
+
+            var bodyBuilder = new BodyBuilder
+            {
+                HtmlBody = htmlBody,
+                TextBody = textBody ?? StripHtml(htmlBody)
+            };
+
+            message.Body = bodyBuilder.ToMessageBody();
+
+            using var client = new SmtpClient();
+
+            var smtpHost = _configuration["Email:SmtpHost"] ?? "localhost";
+            var smtpPort = _configuration.GetValue<int>("Email:SmtpPort", 587);
+            var smtpUser = _configuration["Email:SmtpUser"];
+            var smtpPassword = _configuration["Email:SmtpPassword"];
+            var useSsl = _configuration.GetValue<bool>("Email:UseSsl", true);
+
+            await client.ConnectAsync(smtpHost, smtpPort, useSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.None);
+
+            if (!string.IsNullOrEmpty(smtpUser) && !string.IsNullOrEmpty(smtpPassword))
+            {
+                await client.AuthenticateAsync(smtpUser, smtpPassword);
+            }
+
+            await client.SendAsync(message);
+            await client.DisconnectAsync(true);
+
+            _logger.LogInformation("Email sent successfully to {Email}: {Subject}", toEmail, subject);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send email to {Email}: {Subject}", toEmail, subject);
+            throw;
+        }
+    }
+
+    public async Task SendCriticalIssueAlert(
+        string userEmail,
+        string userName,
+        string buildingName,
+        string issueDescription,
+        int severityScore,
+        string photoUrl)
+    {
+        var subject = $"🚨 Critical Issue Detected - {buildingName}";
+        var htmlBody = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #dc2626; color: white; padding: 20px; border-radius: 8px 8px 0 0; }}
+        .content {{ background-color: #f9fafb; padding: 20px; }}
+        .alert-box {{ background-color: #fee2e2; border-left: 4px solid #dc2626; padding: 15px; margin: 15px 0; }}
+        .severity {{ font-size: 24px; font-weight: bold; color: #dc2626; }}
+        .button {{ background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin-top: 15px; }}
+        .footer {{ text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }}
+    </style>
+</head>
+<body>
+    <div class=""container"">
+        <div class=""header"">
+            <h1>🚨 Critical Issue Alert</h1>
+        </div>
+        <div class=""content"">
+            <p>Hi {userName},</p>
+            <p>Our AI system has detected a <strong>critical maintenance issue</strong> at:</p>
+            <h2>{buildingName}</h2>
+
+            <div class=""alert-box"">
+                <p><strong>Issue Detected:</strong></p>
+                <p>{issueDescription}</p>
+                <p><span class=""severity"">Severity Score: {severityScore}/100</span></p>
+            </div>
+
+            <p><strong>Immediate Action Required:</strong></p>
+            <ul>
+                <li>Review the detected issue in FieldMind</li>
+                <li>Assess on-site conditions if needed</li>
+                <li>Create a maintenance task or work order</li>
+                <li>Update the issue status when resolved</li>
+            </ul>
+
+            <a href=""{photoUrl}"" class=""button"">View Photo & Details</a>
+
+            <p style=""margin-top: 20px; font-size: 12px; color: #6b7280;"">
+                This alert was automatically generated by FieldMind AI analysis.
+                Severity scores of 75+ indicate critical issues requiring immediate attention.
+            </p>
+        </div>
+        <div class=""footer"">
+            <p>FieldMind - AI-Powered Property Intelligence</p>
+            <p>To manage notification preferences, visit your account settings</p>
+        </div>
+    </div>
+</body>
+</html>";
+
+        await SendEmailAsync(userEmail, userName, subject, htmlBody);
+    }
+
+    public async Task SendReportReadyNotification(
+        string userEmail,
+        string userName,
+        string reportType,
+        string entityName,
+        string downloadUrl)
+    {
+        var subject = $"📄 Your {reportType} Report is Ready - {entityName}";
+        var htmlBody = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #2563eb; color: white; padding: 20px; border-radius: 8px 8px 0 0; }}
+        .content {{ background-color: #f9fafb; padding: 20px; }}
+        .button {{ background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin-top: 15px; }}
+        .footer {{ text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }}
+    </style>
+</head>
+<body>
+    <div class=""container"">
+        <div class=""header"">
+            <h1>📄 Report Ready for Download</h1>
+        </div>
+        <div class=""content"">
+            <p>Hi {userName},</p>
+            <p>Your requested <strong>{reportType} report</strong> has been generated and is ready for download:</p>
+            <h2>{entityName}</h2>
+
+            <p>The report includes:</p>
+            <ul>
+                <li>Building information and summary</li>
+                <li>Health statistics and trends</li>
+                <li>Maintenance events timeline</li>
+                <li>Photo gallery with AI analysis</li>
+            </ul>
+
+            <a href=""{downloadUrl}"" class=""button"">Download PDF Report</a>
+
+            <p style=""margin-top: 20px; font-size: 12px; color: #6b7280;"">
+                Download link expires in 7 days. The report is also available in your FieldMind dashboard.
+            </p>
+        </div>
+        <div class=""footer"">
+            <p>FieldMind - Professional Inspection Reports</p>
+        </div>
+    </div>
+</body>
+</html>";
+
+        await SendEmailAsync(userEmail, userName, subject, htmlBody);
+    }
+
+    public async Task SendShareLinkNotification(
+        string userEmail,
+        string userName,
+        string recipientEmail,
+        string shareTitle,
+        string shareUrl,
+        bool hasPassword)
+    {
+        var subject = $"📷 Photo Gallery Shared: {shareTitle}";
+        var passwordNote = hasPassword ? "<p><strong>Note:</strong> This gallery is password-protected. Make sure to share the password separately.</p>" : "";
+
+        var htmlBody = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #10b981; color: white; padding: 20px; border-radius: 8px 8px 0 0; }}
+        .content {{ background-color: #f9fafb; padding: 20px; }}
+        .button {{ background-color: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin-top: 15px; }}
+        .footer {{ text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }}
+    </style>
+</head>
+<body>
+    <div class=""container"">
+        <div class=""header"">
+            <h1>📷 Share Link Created</h1>
+        </div>
+        <div class=""content"">
+            <p>Hi {userName},</p>
+            <p>Your share link has been created successfully:</p>
+            <h2>{shareTitle}</h2>
+
+            <p>You can now share this link with clients or stakeholders:</p>
+            <p style=""background: #e5e7eb; padding: 10px; border-radius: 4px; font-family: monospace; word-break: break-all;"">{shareUrl}</p>
+
+            {passwordNote}
+
+            <a href=""{shareUrl}"" class=""button"">Preview Gallery</a>
+
+            <p style=""margin-top: 20px;""><strong>Recipients can:</strong></p>
+            <ul>
+                <li>View photos without creating an account</li>
+                <li>See AI-generated analysis and insights</li>
+                <li>Access on any device</li>
+            </ul>
+        </div>
+        <div class=""footer"">
+            <p>FieldMind - Easy Photo Sharing</p>
+        </div>
+    </div>
+</body>
+</html>";
+
+        await SendEmailAsync(userEmail, userName, subject, htmlBody);
+    }
+
+    private string StripHtml(string html)
+    {
+        return System.Text.RegularExpressions.Regex.Replace(html, "<.*?>", string.Empty);
+    }
+}

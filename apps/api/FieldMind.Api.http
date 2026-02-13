@@ -1,0 +1,6 @@
+@FieldMind.Api_HostAddress = http://localhost:5105
+
+GET {{FieldMind.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -14,6 +14,9 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { Camera } from 'expo-camera';
+import apiService from '../services/api.service';
+import uploadService from '../services/upload.service';
+import offlineService from '../services/offline.service';
 
 /**
  * QuickCaptureScreen - Optimized for field workers
@@ -78,12 +81,16 @@ export default function QuickCaptureScreen({ navigation, route }: any) {
   }, []);
 
   const loadFolders = async () => {
-    // TODO: API call to get folders
-    setFolders([
-      { id: '1', name: 'Exterior Shots' },
-      { id: '2', name: 'Roof Damage' },
-      { id: '3', name: 'Interior' },
-    ]);
+    if (!project?.id) return;
+
+    try {
+      const foldersData = await apiService.getFolders(project.id);
+      setFolders(foldersData || []);
+    } catch (error) {
+      console.error('Failed to load folders:', error);
+      // Use empty array if API fails
+      setFolders([]);
+    }
   };
 
   const takePhoto = async () => {
@@ -168,34 +175,67 @@ export default function QuickCaptureScreen({ navigation, route }: any) {
       return;
     }
 
+    if (!building?.id || !project?.id) {
+      Alert.alert('Error', 'Building and project information is missing');
+      return;
+    }
+
     setIsUploading(true);
 
     try {
-      for (const photo of photos) {
-        // 1. Get presigned upload URL
-        // 2. Upload to S3
-        // 3. Complete upload API call
-        // 4. AI analysis will be triggered automatically
+      // Check if online
+      const isOnline = await offlineService.checkNetworkStatus();
 
-        // TODO: Implement actual upload
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate upload
+      let successCount = 0;
+      let queuedCount = 0;
+
+      for (const photo of photos) {
+        const uploadData = {
+          uri: photo.uri,
+          buildingId: building.id,
+          projectId: project.id,
+          folderId: selectedFolder.id,
+          tags: photo.tags,
+          notes: photo.notes,
+          geoLat: photo.location?.lat,
+          geoLng: photo.location?.lng,
+          capturedAt: photo.timestamp
+        };
+
+        if (isOnline) {
+          try {
+            // Try to upload immediately
+            await uploadService.uploadPhoto(uploadData);
+            successCount++;
+          } catch (error) {
+            // If upload fails, queue for later
+            console.error('Upload failed, queueing:', error);
+            await offlineService.addToQueue(uploadData);
+            queuedCount++;
+          }
+        } else {
+          // Offline - add to queue
+          await offlineService.addToQueue(uploadData);
+          queuedCount++;
+        }
       }
 
-      Alert.alert(
-        'Success!',
-        `${photos.length} photo(s) uploaded successfully. AI analysis will begin shortly.`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setPhotos([]);
-              navigation.goBack();
-            }
+      const message = isOnline
+        ? `${successCount} photo(s) uploaded successfully! ${queuedCount > 0 ? `${queuedCount} queued for retry.` : ''} AI analysis will begin shortly.`
+        : `${queuedCount} photo(s) queued. Will upload when connection is restored.`;
+
+      Alert.alert('Success!', message, [
+        {
+          text: 'OK',
+          onPress: () => {
+            setPhotos([]);
+            navigation.goBack();
           }
-        ]
-      );
+        }
+      ]);
     } catch (error) {
-      Alert.alert('Upload Failed', 'Some photos failed to upload. They will be retried when connection is restored.');
+      console.error('Upload error:', error);
+      Alert.alert('Error', 'Failed to process photos. Please try again.');
     } finally {
       setIsUploading(false);
     }
@@ -209,14 +249,16 @@ export default function QuickCaptureScreen({ navigation, route }: any) {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Create',
-          onPress: (folderName) => {
-            if (folderName) {
-              const newFolder = {
-                id: Date.now().toString(),
-                name: folderName
-              };
-              setFolders([...folders, newFolder]);
-              setSelectedFolder(newFolder);
+          onPress: async (folderName) => {
+            if (folderName && project?.id) {
+              try {
+                const newFolder = await apiService.createFolder(project.id, folderName);
+                setFolders([...folders, newFolder]);
+                setSelectedFolder(newFolder);
+              } catch (error) {
+                console.error('Failed to create folder:', error);
+                Alert.alert('Error', 'Failed to create folder. Please try again.');
+              }
             }
           }
         }

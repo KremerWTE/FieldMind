@@ -10,6 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import * as Location from 'expo-location';
+import apiService from '../services/api.service';
 
 /**
  * JobSiteSelectScreen - Quick building/project selection for field workers
@@ -65,58 +66,32 @@ export default function JobSiteSelectScreen({ navigation }: any) {
         });
       }
 
-      // TODO: API calls to get buildings and projects
-      // For now, use mock data
-      const mockBuildings: Building[] = [
-        {
-          id: '1',
-          name: 'Downtown Office Complex',
-          address: '123 Main St, Chicago, IL',
-          geoLat: 41.8781,
-          geoLng: -87.6298
-        },
-        {
-          id: '2',
-          name: 'Riverside Apartments',
-          address: '456 River Rd, Chicago, IL',
-          geoLat: 41.9242,
-          geoLng: -87.6542
-        },
-        {
-          id: '3',
-          name: 'Industrial Warehouse #7',
-          address: '789 Industrial Pkwy, Chicago, IL',
-          geoLat: 41.8119,
-          geoLng: -87.7006
-        }
-      ];
+      // Fetch buildings from API
+      const buildingsResponse = await apiService.getBuildings();
+      const buildingsData: Building[] = buildingsResponse.items.map((b: any) => ({
+        id: b.id,
+        name: b.name,
+        address: b.address,
+        geoLat: b.geoLat,
+        geoLng: b.geoLng
+      }));
 
-      const mockProjects: Project[] = [
-        {
-          id: '1',
-          name: 'Q1 2025 Roof Inspection',
-          buildingId: '1',
-          buildingName: 'Downtown Office Complex',
-          status: 'active'
-        },
-        {
-          id: '2',
-          name: 'Storm Damage Assessment',
-          buildingId: '2',
-          buildingName: 'Riverside Apartments',
-          status: 'active'
-        },
-        {
-          id: '3',
-          name: 'Annual Facility Inspection',
-          buildingId: '3',
-          buildingName: 'Industrial Warehouse #7',
-          status: 'active'
-        }
-      ];
+      setBuildings(buildingsData);
 
-      setBuildings(mockBuildings);
-      setProjects(mockProjects);
+      // Fetch projects from API
+      const projectsResponse = await apiService.getProjects({ status: 'active' });
+      const projectsData: Project[] = projectsResponse.items.map((p: any) => {
+        const building = buildingsData.find(b => b.id === p.buildingId);
+        return {
+          id: p.id,
+          name: p.name,
+          buildingId: p.buildingId,
+          buildingName: building?.name || 'Unknown Building',
+          status: p.status
+        };
+      });
+
+      setProjects(projectsData);
 
       // Calculate distances if location available
       if (currentLocation) {
@@ -146,6 +121,19 @@ export default function JobSiteSelectScreen({ navigation }: any) {
       setLoading(false);
     } catch (error) {
       console.error('Error loading data:', error);
+
+      // Try to load cached data if API fails
+      try {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        const cachedBuildings = await AsyncStorage.getItem('cachedBuildings');
+        const cachedProjects = await AsyncStorage.getItem('cachedProjects');
+
+        if (cachedBuildings) setBuildings(JSON.parse(cachedBuildings));
+        if (cachedProjects) setProjects(JSON.parse(cachedProjects));
+      } catch (cacheError) {
+        console.error('Failed to load cached data:', cacheError);
+      }
+
       setLoading(false);
     }
   };

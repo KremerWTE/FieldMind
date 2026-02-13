@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("FieldMind.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e143dae2926b210dc5bbcb5f0d1854a50a24e18a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2be601bfbde0e7e25a79edf82398fd6ebd1e560e")]
 [assembly: System.Reflection.AssemblyProductAttribute("FieldMind.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("FieldMind.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

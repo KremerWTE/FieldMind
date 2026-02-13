@@ -101,6 +101,12 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Auto-migrate and seed database in development
+if (app.Environment.IsDevelopment())
+{
+    await app.UseDatabaseSeeding();
+}
+
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {

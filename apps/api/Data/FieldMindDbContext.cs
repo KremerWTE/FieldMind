@@ -12,6 +12,7 @@ public class FieldMindDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Team> Teams => Set<Team>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<UserActivityLog> UserActivityLogs => Set<UserActivityLog>();
     public DbSet<Building> Buildings => Set<Building>();
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<Folder> Folders => Set<Folder>();
@@ -234,6 +235,20 @@ public class FieldMindDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.Token).IsUnique();
             entity.HasIndex(e => new { e.Scope, e.ScopeId });
+        });
+
+        // UserActivityLog
+        modelBuilder.Entity<UserActivityLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.ActivityType);
+            entity.HasIndex(e => e.CreatedAt);
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.ActivityLogs)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

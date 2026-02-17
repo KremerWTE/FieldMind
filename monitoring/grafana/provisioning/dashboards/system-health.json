@@ -1,0 +1,96 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "system-health",
+    "title": "System Health",
+    "tags": ["fieldmind", "health"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 0,
+    "refresh": "1m",
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+        "type": "stat",
+        "title": "Active Alerts",
+        "targets": [
+          {
+            "rawSql": "SELECT COUNT(*) as value FROM monitoring.alert_instances WHERE status = 'firing'",
+            "format": "table"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 1, "color": "yellow" },
+                { "value": 3, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+        "type": "stat",
+        "title": "Pending Jobs",
+        "targets": [
+          {
+            "rawSql": "SELECT COUNT(*) as value FROM hangfire.job WHERE state_name IN ('Enqueued', 'Scheduled')",
+            "format": "table"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+        "type": "stat",
+        "title": "Failed Jobs",
+        "targets": [
+          {
+            "rawSql": "SELECT COUNT(*) as value FROM hangfire.job WHERE state_name = 'Failed'",
+            "format": "table"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "value": 0, "color": "green" },
+                { "value": 1, "color": "yellow" },
+                { "value": 5, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "gridPos": { "h": 10, "w": 24, "x": 0, "y": 6 },
+        "type": "table",
+        "title": "Recent Errors",
+        "targets": [
+          {
+            "rawSql": "SELECT occurred_at, platform, severity, error_type, message FROM monitoring.error_logs WHERE occurred_at > NOW() - INTERVAL '1 hour' ORDER BY occurred_at DESC LIMIT 50",
+            "format": "table"
+          }
+        ]
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    }
+  },
+  "overwrite": true
+}

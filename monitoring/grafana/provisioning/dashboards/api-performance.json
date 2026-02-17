@@ -1,0 +1,79 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "api-performance",
+    "title": "API Performance",
+    "tags": ["fieldmind", "api"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 0,
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+        "type": "graph",
+        "title": "Request Rate",
+        "targets": [
+          {
+            "rawSql": "SELECT time_bucket('1 minute', time) as time, COUNT(*) as requests FROM monitoring.api_metrics WHERE $__timeFilter(time) GROUP BY 1 ORDER BY 1",
+            "format": "time_series"
+          }
+        ],
+        "yaxes": [
+          { "label": "Requests/min", "show": true },
+          { "show": false }
+        ]
+      },
+      {
+        "id": 2,
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+        "type": "graph",
+        "title": "Response Time (p50, p95, p99)",
+        "targets": [
+          {
+            "rawSql": "SELECT time_bucket('1 minute', time) as time, PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY duration_ms) as p50, PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms) as p95, PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY duration_ms) as p99 FROM monitoring.api_metrics WHERE $__timeFilter(time) GROUP BY 1 ORDER BY 1",
+            "format": "time_series"
+          }
+        ],
+        "yaxes": [
+          { "label": "Duration (ms)", "show": true },
+          { "show": false }
+        ]
+      },
+      {
+        "id": 3,
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+        "type": "graph",
+        "title": "Error Rate",
+        "targets": [
+          {
+            "rawSql": "SELECT time_bucket('1 minute', time) as time, CAST(COUNT(*) FILTER (WHERE status_code >= 500) AS FLOAT) / NULLIF(COUNT(*), 0) * 100 as error_rate FROM monitoring.api_metrics WHERE $__timeFilter(time) GROUP BY 1 ORDER BY 1",
+            "format": "time_series"
+          }
+        ],
+        "yaxes": [
+          { "label": "Error Rate (%)", "show": true },
+          { "show": false }
+        ]
+      },
+      {
+        "id": 4,
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+        "type": "table",
+        "title": "Slowest Endpoints",
+        "targets": [
+          {
+            "rawSql": "SELECT endpoint, method, COUNT(*) as requests, ROUND(AVG(duration_ms)::numeric, 2) as avg_duration_ms FROM monitoring.api_metrics WHERE $__timeFilter(time) GROUP BY endpoint, method ORDER BY avg_duration_ms DESC LIMIT 10",
+            "format": "table"
+          }
+        ]
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    }
+  },
+  "overwrite": true
+}

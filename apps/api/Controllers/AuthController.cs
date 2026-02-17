@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using FieldMind.Api.Services;
 using FieldMind.Api.DTOs;
+using FieldMind.Api.DTOs.UserManagement;
 
 namespace FieldMind.Api.Controllers;
 
@@ -9,10 +10,12 @@ namespace FieldMind.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly AuthService _authService;
+    private readonly UserManagementService _userService;
 
-    public AuthController(AuthService authService)
+    public AuthController(AuthService authService, UserManagementService userService)
     {
         _authService = authService;
+        _userService = userService;
     }
 
     [HttpPost("register")]
@@ -56,5 +59,35 @@ public class AuthController : ControllerBase
     {
         await _authService.Logout(request.RefreshToken);
         return Ok(new { message = "Logged out successfully" });
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        await _userService.InitiatePasswordReset(request.Email);
+        // Always return success to prevent email enumeration
+        return Ok(new { message = "If an account with that email exists, a password reset link has been sent" });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        var success = await _userService.ResetPassword(request.Token, request.NewPassword);
+
+        if (!success)
+            return BadRequest(new { message = "Invalid or expired reset token" });
+
+        return Ok(new { message = "Password reset successfully" });
+    }
+
+    [HttpPost("verify-email")]
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequest request)
+    {
+        var success = await _userService.VerifyEmail(request.Token);
+
+        if (!success)
+            return BadRequest(new { message = "Invalid verification token" });
+
+        return Ok(new { message = "Email verified successfully" });
     }
 }

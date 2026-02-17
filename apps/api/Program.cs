@@ -8,8 +8,38 @@ using FieldMind.Api.Data;
 using FieldMind.Api.Services;
 using FieldMind.Api.Services.AI;
 using FieldMind.Api.Jobs;
+using FieldMind.Api.Middleware;
+using FieldMind.Api.BackgroundServices;
+using Serilog;
+using Serilog.Exceptions;
+
+// Configure Serilog BEFORE building the host
+Log.Logger = new LoggerConfiguration()
+    .Enrich.FromLogContext()
+    .Enrich.WithMachineName()
+    .Enrich.WithThreadId()
+    .Enrich.WithExceptionDetails()
+    .WriteTo.Console()
+    .WriteTo.File("logs/fieldmind-.log", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 7)
+    .CreateLogger();
+
+try
+{
+    Log.Information("Starting FieldMind API");
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Use Serilog for logging
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .Enrich.WithMachineName()
+    .Enrich.WithThreadId()
+    .Enrich.WithExceptionDetails()
+    .WriteTo.Console()
+    .WriteTo.File("logs/fieldmind-.log", rollingInterval: RollingInterval.Day, retainedFileCountLimit: 7)
+    .WriteTo.Seq(context.Configuration["Serilog:SeqUrl"] ?? "http://localhost:5341"));
 
 // Database
 builder.Services.AddDbContext<FieldMindDbContext>(options =>
@@ -78,6 +108,16 @@ builder.Services.AddScoped<PDFReportService>();
 // Email Service
 builder.Services.AddSingleton<EmailService>();
 
+// Monitoring Services
+builder.Services.AddScoped<MonitoringService>();
+builder.Services.AddScoped<AlertingService>();
+
+// User Management Services
+builder.Services.AddScoped<UserManagementService>();
+
+// Background Services
+builder.Services.AddHostedService<AlertEvaluationService>();
+
 // Hangfire
 builder.Services.AddHangfire(config =>
 {
@@ -94,6 +134,14 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
+
+// Health Checks
+builder.Services.AddHealthChecks()
+    .AddNpgSql(
+        builder.Configuration.GetConnectionString("DefaultConnection")!,
+        name: "database",
+        tags: new[] { "ready" })
+    .AddCheck<HangfireHealthCheck>("hangfire", tags: new[] { "ready" });
 
 // Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -120,6 +168,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowFrontend");
 
+// Metrics middleware - track all API requests
+app.UseMiddleware<MetricsMiddleware>();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -134,15 +185,58 @@ if (app.Environment.IsDevelopment())
 
 app.MapControllers();
 
+// Health check endpoints
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        var result = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.Select(e => new
+            {
+                name = e.Key,
+                status = e.Value.Status.ToString(),
+                description = e.Value.Description,
+                duration = e.Value.Duration.TotalMilliseconds
+            }),
+            totalDuration = report.TotalDuration.TotalMilliseconds
+        });
+        await context.Response.WriteAsync(result);
+    }
+});
+
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+});
+
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = _ => false // Just returns 200 if app is running
+});
+
 Console.WriteLine("🚀 FieldMind API (.NET 10) running");
 Console.WriteLine($"📚 API Documentation: {app.Urls.FirstOrDefault()}/api-docs");
 if (app.Environment.IsDevelopment())
 {
     Console.WriteLine($"🔧 Hangfire Dashboard: {app.Urls.FirstOrDefault()}/hangfire");
+    Console.WriteLine($"📊 Seq Logs: http://localhost:5341");
+    Console.WriteLine($"📈 Grafana: http://localhost:3002");
 }
 Console.WriteLine($"🤖 AI Provider: {builder.Configuration["AI:Provider"] ?? "mock"}");
 
 app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
 
 // Simple auth filter for Hangfire dashboard in dev
 public class HangfireAuthorizationFilter : Hangfire.Dashboard.IDashboardAuthorizationFilter

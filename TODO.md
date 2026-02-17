@@ -1,7 +1,7 @@
 # FieldMind TODO - Current Status
 
-**Last Updated**: February 13, 2026
-**Status**: MVP Complete - Production Ready
+**Last Updated**: February 17, 2026
+**Status**: MVP Complete + Monitoring & User Management Added
 
 ---
 
@@ -14,15 +14,19 @@
   - [x] Role-based access control (Admin, PM, FieldTech, Office, ClientViewer)
   - [x] Secure password hashing with BCrypt
   - [x] Token auto-refresh on API calls
+  - [x] Forgot/reset password flow (token-based, 1-hour expiry)
+  - [x] Email verification flow
 
 - [x] **Database & Data Layer**
   - [x] PostgreSQL with Entity Framework Core 10
-  - [x] 14 entity models (User, Team, Building, Project, Photo, etc.)
+  - [x] TimescaleDB extension for time-series metrics
+  - [x] 16 entity models (User, Team, Building, Project, Photo, UserActivityLog, etc.)
   - [x] Database migrations with auto-apply on startup
-  - [x] Comprehensive seed data (3 buildings, 3 projects, 4 photos)
+  - [x] Comprehensive seed data (3 buildings, 3 projects, 4 photos, alert rules)
   - [x] Team-based multi-tenancy
+  - [x] Monitoring schema with 7 tables (hypertables for time-series)
 
-- [x] **Core Features (47 API Endpoints)**
+- [x] **Core Features (55+ API Endpoints)**
   - [x] Buildings CRUD + health stats + maintenance timeline (8 endpoints)
   - [x] Projects & Folders management (7 endpoints)
   - [x] Photo upload with S3 presigned URLs (12 endpoints)
@@ -31,6 +35,9 @@
   - [x] PDF report generation (4 endpoints)
   - [x] Product features display (4 endpoints)
   - [x] Company information (4 endpoints)
+  - [x] User management CRUD (8 endpoints - Admin/PM)
+  - [x] User profile self-service (6 endpoints)
+  - [x] Monitoring ingestion & dashboard (6 endpoints)
 
 - [x] **AI Processing System**
   - [x] AI service abstraction layer (IVisionAnnotator)
@@ -52,11 +59,16 @@
   - [x] Report ready notifications
   - [x] Share link created notifications
   - [x] HTML email templates
+  - [x] Password change confirmation email
+  - [x] Password reset email
+  - [x] User invitation email with temp credentials
+  - [x] Alert notification emails
 
 - [x] **Background Jobs**
   - [x] Hangfire with PostgreSQL storage
   - [x] PhotoAIAnalysisJob (photo → AI → events → health stats)
   - [x] GenerateReportJob (async PDF generation)
+  - [x] AlertEvaluationService (60s background worker evaluating alert rules)
   - [x] Retry logic with exponential backoff
 
 - [x] **Storage & Files**
@@ -65,12 +77,40 @@
   - [x] PDF report generation with QuestPDF
   - [x] Professional report layouts
 
+- [x] **Monitoring & Observability**
+  - [x] Serilog structured logging (Console, File, Seq sinks)
+  - [x] Seq self-hosted log aggregation (Docker, port 5341)
+  - [x] TimescaleDB time-series metrics storage
+  - [x] MetricsMiddleware — tracks every API request (method, endpoint, status, duration)
+  - [x] Grafana dashboards (port 3002): API Performance, System Health
+  - [x] Custom alert rules with SQL-based evaluation
+  - [x] Alert notifications (email, Slack, webhook)
+  - [x] Alert throttling and auto-resolve
+  - [x] Health checks: /health, /health/ready, /health/live
+  - [x] HangfireHealthCheck (custom IHealthCheck)
+  - [x] Web frontend error tracking (MonitoringClient, ErrorBoundary)
+  - [x] Mobile error tracking with offline queue
+
+- [x] **User Management**
+  - [x] Admin user list with filtering (role, status, search) and pagination
+  - [x] User detail view with activity log tab
+  - [x] Invite user with email and temp credentials
+  - [x] Edit user (name, phone, job title, role, active status)
+  - [x] Suspend user (revokes all refresh tokens)
+  - [x] Activate user
+  - [x] Delete user
+  - [x] UserActivityLog audit trail (17 activity types)
+  - [x] User preferences (theme, language, notifications, date format)
+  - [x] Profile picture URL support
+
 - [x] **Documentation**
   - [x] Swagger/OpenAPI documentation
   - [x] Hangfire dashboard (dev mode)
-  - [x] 11 comprehensive markdown guides
+  - [x] 13 comprehensive markdown guides
   - [x] API endpoint reference
   - [x] Setup and testing guides
+  - [x] MONITORING.md — self-hosted monitoring guide
+  - [x] ALERTING.md — alert configuration guide
 
 ### Mobile App (React Native + Expo)
 - [x] **Core Screens**
@@ -80,11 +120,12 @@
   - [x] ProjectsScreen (scaffold)
 
 - [x] **Services Layer**
-  - [x] API Service - all 47 endpoints integrated
+  - [x] API Service - all endpoints integrated
   - [x] Upload Service - S3 direct upload with progress
   - [x] Offline Service - persistent queue with auto-retry
   - [x] Automatic JWT token management
   - [x] Secure token storage (Expo SecureStore)
+  - [x] Monitoring Service - error tracking with offline queue
 
 - [x] **Field Worker Optimizations**
   - [x] Large tap targets (glove-friendly)
@@ -94,25 +135,14 @@
   - [x] Offline queue with persistent storage
   - [x] Network monitoring with auto-retry
 
-- [x] **User Experience**
-  - [x] One-tap camera access
-  - [x] Inline folder creation
-  - [x] Real-time upload progress
-  - [x] Loading states and error handling
-  - [x] Quick login buttons (for testing)
-
-### Documentation
-- [x] QUICK_START.md - 5-minute setup guide
-- [x] DOTNET_COMPLETE.md - Full API implementation
-- [x] AI_PROCESSING.md - AI system architecture
-- [x] SEARCH.md - Search functionality
-- [x] EMAIL_INTEGRATION_COMPLETE.md - Email setup
-- [x] SHARE_LINKS.md - Share links documentation
-- [x] MOBILE_APP_GUIDE.md - Field worker guide
-- [x] MOBILE_API_INTEGRATION.md - API integration guide
-- [x] FEATURES.md - Product features
-- [x] VERIFICATION_CHECKLIST.md - Testing guide
-- [x] README.md - Project overview
+### Web App (Next.js)
+- [x] **Admin: User Management**
+  - [x] `/users` — list with search, role filter, status filter, pagination
+  - [x] `/users/[id]` — detail/edit with activity log tab
+  - [x] `/users/invite` — invite form with role selection
+  - [x] `/profile` — three-tab settings (Profile, Security, Preferences)
+  - [x] `UsersTable` component with role badges, status badges, actions
+  - [x] `UsersFilters` component
 
 ---
 
@@ -165,7 +195,7 @@
   - [ ] Batch tag suggestions
 
 ### Web App
-- [ ] **Frontend Implementation**
+- [ ] **Frontend Implementation (Core Features)**
   - [ ] Dashboard with building health overview
   - [ ] Building detail pages with tabs
   - [ ] Photo gallery with AI annotations
@@ -175,13 +205,6 @@
   - [ ] Report generation UI
   - [ ] Share link management
 
-- [ ] **Admin Features**
-  - [ ] User management
-  - [ ] Team settings
-  - [ ] Integration configuration
-  - [ ] API key management
-  - [ ] Usage analytics
-
 ### DevOps
 - [ ] **Production Deployment**
   - [ ] Docker containers for API
@@ -190,51 +213,48 @@
   - [ ] Automated testing in pipeline
   - [ ] Staging environment
 
-- [ ] **Monitoring & Logging**
-  - [ ] Sentry error tracking
-  - [ ] Application Insights
-  - [ ] Structured logging
-  - [ ] Performance monitoring
-  - [ ] Uptime monitoring
+- [ ] **Pending: Run migrations**
+  - [ ] Install Docker Desktop
+  - [ ] `docker compose up -d` (starts TimescaleDB, Seq, Grafana)
+  - [ ] `dotnet ef database update` (applies all migrations)
 
 ---
 
-## 🚀 Immediate Next Steps (If Continuing)
+## 🚀 Immediate Next Steps
 
-### 1. Production Configuration
+### 1. Get Database Running
+- [ ] Install Docker Desktop (required for TimescaleDB + Seq + Grafana)
+- [ ] `docker compose up -d`
+- [ ] `dotnet ef database update`
+- [ ] `dotnet run` and verify at https://localhost:7001/api-docs
+
+### 2. Production Configuration
 - [ ] Set up production AWS S3 bucket
 - [ ] Configure OpenAI API key for real AI analysis
 - [ ] Set up production SMTP for emails
-- [ ] Configure production database (Heroku Postgres, AWS RDS, etc.)
+- [ ] Configure production database
 - [ ] Set strong JWT secret in production
+- [ ] Set `Monitoring:ApiKey` in production secrets
 
-### 2. Testing
+### 3. Testing
 - [ ] End-to-end testing with real devices
 - [ ] Test offline mode thoroughly
 - [ ] Load testing (100+ photos)
-- [ ] Test all 47 API endpoints
+- [ ] Test all API endpoints
 - [ ] Cross-platform testing (iOS + Android)
 
-### 3. Web Frontend
-- [ ] Create Next.js pages for main features
-- [ ] Implement photo gallery component
-- [ ] Build dashboard with health widgets
-- [ ] Add search interface
-- [ ] Create report generation UI
+### 4. Web Frontend (Remaining Core Features)
+- [ ] Dashboard with building health overview
+- [ ] Building detail pages
+- [ ] Photo gallery with AI annotations
+- [ ] Search interface
 
-### 4. Security Review
+### 5. Security Review
 - [ ] API security audit
 - [ ] Review CORS settings
 - [ ] Check SQL injection prevention
 - [ ] Test authorization on all endpoints
 - [ ] Review S3 bucket permissions
-
-### 5. Performance Testing
-- [ ] Load test API endpoints
-- [ ] Test photo upload performance
-- [ ] Optimize database queries
-- [ ] Test Hangfire job processing under load
-- [ ] Mobile app performance profiling
 
 ---
 
@@ -243,17 +263,20 @@
 **Completion Status:**
 - Backend API: **100%** ✅
 - Mobile App: **100%** ✅
-- Web App: **20%** (scaffold only)
+- Web App: **35%** (user management + profile complete; core features pending)
+- Monitoring: **100%** ✅
 - Documentation: **100%** ✅
 - Testing: **60%** (manual testing done, automated tests pending)
 
 **Code Statistics:**
-- Total Lines: ~22,000+
-- API Endpoints: 47
-- Database Models: 14
+- Total Lines: ~30,000+
+- API Endpoints: 55+
+- Database Models: 16+
+- Services: 22+
 - Mobile Screens: 4
-- Services: 19
-- Background Jobs: 2
+- Background Jobs: 3
+- Web Pages: 8+
+- Grafana Dashboards: 2
 
 **Test Data:**
 - Teams: 1
@@ -262,6 +285,7 @@
 - Projects: 3
 - Photos: 4 (with AI annotations)
 - Maintenance Events: 2
+- Alert Rules: 5 (pre-seeded)
 
 ---
 
@@ -283,10 +307,10 @@
 - [x] Database migrations automated
 - [x] Background jobs processing
 - [x] Error handling comprehensive
-- [x] Logging throughout
+- [x] Structured logging throughout (Serilog → Seq)
 - [x] Documentation complete
+- [x] Monitoring & alerting built (needs Docker to run)
 - [ ] Production deployment configured
-- [ ] Monitoring & alerting set up
 - [ ] Load testing completed
 
 ---
@@ -295,35 +319,33 @@
 
 **Current State:**
 - ✅ Fully functional MVP
-- ✅ Ready for internal testing
+- ✅ Comprehensive monitoring system (self-hosted)
+- ✅ Complete user management with audit trail
 - ✅ Backend production-ready
 - ✅ Mobile app production-ready
-- ⚠️ Web app needs implementation
+- ⚠️ Web app needs core feature pages (user mgmt done)
+- ⚠️ Docker needed to run locally (TimescaleDB, Seq, Grafana)
 - ⚠️ Production deployment needed
 
 **Known Limitations:**
-- Web app is scaffold only (Next.js structure exists)
+- Docker Desktop required (TimescaleDB replaces standard postgres)
+- Web app core feature pages not yet built
 - Integration webhooks are stubs
 - No automated tests yet
 - Not deployed to production environment
 
-**Recommended Next Phase:**
-1. Deploy backend to production (Azure, AWS, or Heroku)
-2. Test with real field workers
-3. Gather feedback on mobile UX
-4. Build web admin dashboard
-5. Add integration webhooks based on customer needs
-
 ---
 
-**Last Session:** February 13, 2026
+**Last Session:** February 17, 2026
 **Major Accomplishments:**
-- Complete backend API with 47 endpoints
-- Full mobile app with real API integration
-- AI processing system with automatic analysis
-- Email notifications system
-- Database seeding with comprehensive test data
-- 11 comprehensive documentation guides
-- Offline support with automatic retry
+- Complete self-hosted monitoring system (Serilog, Seq, TimescaleDB, Grafana)
+- Custom alert evaluation service with email/Slack/webhook notifications
+- Health checks for database and Hangfire
+- Web frontend error tracking + React ErrorBoundary
+- Mobile error tracking with offline queue
+- Full user management system (invite, suspend, activate, delete, audit log)
+- Password reset and email verification flows
+- User profile settings page (profile, security, preferences)
+- 4 new web pages for user management
 
-**Status:** ✅ **MVP COMPLETE - READY FOR TESTING**
+**Status:** ✅ **MONITORING COMPLETE + USER MANAGEMENT COMPLETE**

@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: timescale/timescaledb:latest-pg16
     container_name: fieldmind-postgres
     ports:
       - '5432:5432'
@@ -31,6 +31,44 @@ services:
       timeout: 5s
       retries: 5
 
+  seq:
+    image: datalust/seq:latest
+    container_name: fieldmind-seq
+    ports:
+      - '5341:80'
+    environment:
+      ACCEPT_EULA: Y
+      SEQ_API_KEY: ${SEQ_API_KEY:-monitoring-key}
+    volumes:
+      - seq_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: fieldmind-grafana
+    ports:
+      - '3002:3000'
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 volumes:
   postgres_data:
   redis_data:
+  seq_data:
+  grafana_data:

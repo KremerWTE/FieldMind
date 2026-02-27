@@ -2,7 +2,7 @@
 
 **Project:** FieldMind - AI-Powered Property Intelligence Platform
 **Version:** 1.1
-**Last Updated:** February 17, 2026
+**Last Updated:** February 27, 2026
 **Overall Status:** 🎉 **MVP + Monitoring + User Management Complete**
 
 ---
@@ -321,10 +321,15 @@
 
 #### Deployment
 - [ ] Docker containerization
-- [ ] CI/CD pipeline (GitHub Actions)
+- [ ] CI/CD pipeline (GitHub Actions) ⚠️ *removed 2026-02-27 — npm workspace hoisting issue; re-add after fix*
 - [ ] Automated testing in pipeline
 - [ ] Blue/green deployment strategy
 - [ ] Database migration strategy
+
+#### CI/CD Pre-requisites
+- [ ] Fix npm workspace so `next` resolves after root-level `npm ci`
+- [ ] Verify `npm run build -w @fieldmind/web` succeeds from repo root
+- [ ] Re-add `.github/workflows/ci.yml`
 
 ---
 
@@ -410,6 +415,7 @@
 - **Integrations:** Stub implementations need completion
 - **Docker:** Migrations pending Docker Desktop install
 - **Documentation:** User guides for web app needed
+- **CI/CD:** GitHub Actions workflow removed — npm workspace hoisting must be resolved before re-adding
 
 ### Resolved Since Last Review
 - ✅ Monitoring: Complete self-hosted stack implemented
@@ -531,6 +537,6 @@
 
 ---
 
-**Last Updated:** February 17, 2026
-**Next Review:** March 1, 2026
-**Status:** ✅ **MONITORING + USER MANAGEMENT COMPLETE — DEPLOYMENT NEXT**
+**Last Updated:** February 27, 2026
+**Next Review:** March 6, 2026
+**Status:** ✅ **MONITORING + USER MANAGEMENT COMPLETE — DEPLOYMENT NEXT | CI removed pending workspace fix**

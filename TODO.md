@@ -209,9 +209,14 @@
 - [ ] **Production Deployment**
   - [ ] Docker containers for API
   - [ ] Kubernetes deployment configs
-  - [ ] CI/CD pipeline (GitHub Actions)
+  - [ ] CI/CD pipeline (GitHub Actions) ⚠️ *removed 2026-02-27 — needs npm workspace fix first*
   - [ ] Automated testing in pipeline
   - [ ] Staging environment
+
+- [ ] **CI/CD Pre-requisites (before re-adding GitHub Actions)**
+  - [ ] Resolve npm workspace hoisting so `next` resolves in `apps/web` after root `npm ci`
+  - [ ] Verify `npm run build -w @fieldmind/web` works from repo root
+  - [ ] Re-add `.github/workflows/ci.yml` once local build passes
 
 - [ ] **Pending: Run migrations**
   - [ ] Install Docker Desktop
@@ -336,8 +341,15 @@
 
 ---
 
-**Last Session:** February 17, 2026
+**Last Session:** February 27, 2026
 **Major Accomplishments:**
+- Diagnosed CI failures: missing `package-lock.json` + wrong npm ci working directory for workspace
+- Added `package-lock.json` to repo root (generated with `npm install --package-lock-only`)
+- Fixed CI workflow: root-level install + `npm run build -w @fieldmind/web`
+- CI still failed due to npm workspace hoisting issue (`next` not resolved in subdir after root install)
+- Removed CI workflow at user request — needs workspace setup resolved before re-adding
+
+**Previous Session (Feb 17):**
 - Complete self-hosted monitoring system (Serilog, Seq, TimescaleDB, Grafana)
 - Custom alert evaluation service with email/Slack/webhook notifications
 - Health checks for database and Hangfire
@@ -348,4 +360,4 @@
 - User profile settings page (profile, security, preferences)
 - 4 new web pages for user management
 
-**Status:** ✅ **MONITORING COMPLETE + USER MANAGEMENT COMPLETE**
+**Status:** ✅ **MONITORING + USER MANAGEMENT COMPLETE | CI removed pending workspace fix**

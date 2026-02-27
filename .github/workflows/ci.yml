@@ -31,9 +31,6 @@ jobs:
   build-web:
     name: Build Web App
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/web
 
     steps:
       - uses: actions/checkout@v4
@@ -48,7 +45,7 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: npm run build
+        run: npm run build -w @fieldmind/web
 
   lint:
     name: Lint & Type Check

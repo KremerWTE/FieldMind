@@ -1,26 +1,64 @@
-# Dependencies
+# ============================================================
+# FieldMind — .gitignore
+# https://github.com/KremerWTE/FieldMind.git
+# ============================================================
+
+# ------------------------------------------------------------
+# Node / npm / Turborepo
+# ------------------------------------------------------------
 node_modules/
 .pnp
 .pnp.js
+.turbo/
+*.tsbuildinfo
+.cache/
 
-# Testing
-coverage/
-*.lcov
-
-# Production
+# ------------------------------------------------------------
+# Build Output (Node)
+# ------------------------------------------------------------
 dist/
 build/
 .next/
 out/
 
-# Environment
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# ------------------------------------------------------------
+# .NET Build Artifacts
+# ------------------------------------------------------------
+[Bb]in/
+[Oo]bj/
+[Pp]ublish/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+project.lock.json
+project.fragment.lock.json
+artifacts/
 
+# .NET test results
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# .NET tool manifests (optional — uncomment to ignore)
+# .config/dotnet-tools.json
+
+# ------------------------------------------------------------
+# Environment & Secrets
+# ------------------------------------------------------------
+.env
+.env.*
+!.env.example
+appsettings.Production.json
+appsettings.Staging.json
+secrets.json
+*.pfx
+*.p12
+
+# ------------------------------------------------------------
 # Logs
+# ------------------------------------------------------------
 logs/
 *.log
 npm-debug.log*
@@ -28,29 +66,75 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
+# Serilog structured log files
+apps/api/logs/
+
+# ------------------------------------------------------------
+# Testing & Coverage
+# ------------------------------------------------------------
+coverage/
+*.lcov
+
+# ------------------------------------------------------------
 # OS
+# ------------------------------------------------------------
 .DS_Store
 Thumbs.db
+desktop.ini
+ehthumbs.db
 
-# IDE
+# ------------------------------------------------------------
+# IDE & Editors
+# ------------------------------------------------------------
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+*.orig
 
-# Turbo
-.turbo/
+# Visual Studio
+.vs/
+*.rsuser
+*.VC.db
+*.VC.opendb
+__pycache__/
 
-# Prisma
-prisma/migrations/
+# Rider
+.idea/
 
-# Expo
+# ------------------------------------------------------------
+# Expo / React Native
+# ------------------------------------------------------------
 .expo/
 .expo-shared/
 
+# ------------------------------------------------------------
+# Data (keep structure, ignore content)
+# ------------------------------------------------------------
+data/migrations/*.sql
+data/seeds/local-*.json
+
+# ------------------------------------------------------------
+# Sessions (local session notes — tracked intentionally)
+# sessions/ is committed; nothing excluded here
+# ------------------------------------------------------------
+
+# ------------------------------------------------------------
+# Prisma (legacy — now using EF Core)
+# ------------------------------------------------------------
+prisma/migrations/
+
+# ------------------------------------------------------------
+# Monitoring local overrides
+# ------------------------------------------------------------
+monitoring/grafana/data/
+monitoring/seq/data/
+
+# ------------------------------------------------------------
 # Misc
-*.tsbuildinfo
-.cache/
+# ------------------------------------------------------------
 temp/
 tmp/
+*.bak
+*.tmp

@@ -13,5 +13,9 @@ public class Team
     public ICollection<Building> Buildings { get; set; } = new List<Building>();
     public ICollection<Project> Projects { get; set; } = new List<Project>();
 
+    // PropTrax integration
+    public string? PropTraxApiKey { get; set; }
+    public string? PropTraxWebhookUrl { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

@@ -111,6 +111,10 @@ builder.Services.AddSingleton<EmailService>();
 // SMS Service (Twilio via HttpClient)
 builder.Services.AddHttpClient<SmsService>();
 
+// PropTrax Integration
+builder.Services.AddHttpClient("proptrax-webhook");
+builder.Services.AddScoped<PropTraxWebhookService>();
+
 // Monitoring Services
 builder.Services.AddScoped<MonitoringService>();
 builder.Services.AddScoped<AlertingService>();

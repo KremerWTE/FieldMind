@@ -3,6 +3,7 @@ using FieldMind.Api.Data;
 using FieldMind.Api.Models;
 using FieldMind.Api.Services;
 using FieldMind.Api.Services.AI;
+using System.Text.Json;
 
 namespace FieldMind.Api.Jobs;
 
@@ -26,6 +27,7 @@ public class PhotoAIAnalysisJob
         var s3Service = scope.ServiceProvider.GetRequiredService<S3StorageService>();
         var aiService = scope.ServiceProvider.GetRequiredService<AIService>();
         var emailService = scope.ServiceProvider.GetRequiredService<EmailService>();
+        var propTraxWebhook = scope.ServiceProvider.GetRequiredService<PropTraxWebhookService>();
 
         try
         {
@@ -96,10 +98,13 @@ public class PhotoAIAnalysisJob
                 photoId, severityScore);
 
             // Auto-create maintenance event if high/critical severity
-            await CreateMaintenanceEventIfNeeded(context, photo, aiOutput, annotation, severityScore, emailService);
+            var maintenanceEvent = await CreateMaintenanceEventIfNeeded(context, photo, aiOutput, annotation, severityScore, emailService);
 
             // Update building health stats
             await UpdateBuildingHealthStats(context, photo, aiOutput);
+
+            // Fire PropTrax webhook (best-effort, non-blocking)
+            await propTraxWebhook.SendPhotoAnalyzedAsync(context, photo, annotation, maintenanceEvent);
 
             _logger.LogInformation("Photo {PhotoId} processing complete", photoId);
         }
@@ -147,7 +152,7 @@ public class PhotoAIAnalysisJob
         return output.DetectedIssues.Average(i => i.Confidence);
     }
 
-    private async Task CreateMaintenanceEventIfNeeded(
+    private async Task<MaintenanceEvent?> CreateMaintenanceEventIfNeeded(
         FieldMindDbContext context,
         Photo photo,
         VisionAnnotationOutput aiOutput,
@@ -161,7 +166,7 @@ public class PhotoAIAnalysisJob
             .ToList();
 
         if (criticalIssues.Count == 0)
-            return;
+            return null;
 
         var highestSeverity = criticalIssues.Any(i => i.Severity == "critical") ? "critical" : "high";
         var issueDescriptions = string.Join("; ", criticalIssues.Select(i => i.Description));
@@ -187,6 +192,8 @@ public class PhotoAIAnalysisJob
 
         _logger.LogWarning("Auto-created maintenance event {EventId} for photo {PhotoId} due to {Severity} severity issues",
             maintenanceEvent.Id, photo.Id, highestSeverity);
+
+        var createdEvent = maintenanceEvent; // capture for return
 
         // Send email notification for critical issues (severity >= 75)
         if (severityScore >= 75)
@@ -225,6 +232,8 @@ public class PhotoAIAnalysisJob
                 _logger.LogError(ex, "Failed to send critical issue alert email for photo {PhotoId}", photo.Id);
             }
         }
+
+        return createdEvent;
     }
 
     private async Task UpdateBuildingHealthStats(

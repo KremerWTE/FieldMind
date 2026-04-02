@@ -596,10 +596,20 @@ namespace FieldMind.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("PropTraxApiKey")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PropTraxWebhookUrl")
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Slug")
                         .IsUnique();
+
+                    b.HasIndex("PropTraxApiKey")
+                        .IsUnique()
+                        .HasFilter("\"PropTraxApiKey\" IS NOT NULL");
 
                     b.ToTable("Teams");
                 });

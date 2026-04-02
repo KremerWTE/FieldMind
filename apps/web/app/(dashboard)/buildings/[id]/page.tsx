@@ -14,6 +14,9 @@ export default function BuildingDetailPage({ params }: { params: Promise<{ id: s
   const [healthStats, setHealthStats] = useState<any[]>([]);
   const [tab, setTab] = useState<Tab>('overview');
   const [loading, setLoading] = useState(true);
+  const [propTraxId, setPropTraxId] = useState('');
+  const [ptxSaving, setPtxSaving] = useState(false);
+  const [ptxMsg, setPtxMsg] = useState('');
 
   const token = () => localStorage.getItem('accessToken');
   const headers = () => ({ Authorization: `Bearer ${token()}` });
@@ -22,7 +25,11 @@ export default function BuildingDetailPage({ params }: { params: Promise<{ id: s
   useEffect(() => {
     const loadBuilding = async () => {
       const res = await fetch(`${base}/buildings/${id}`, { headers: headers() });
-      if (res.ok) setBuilding(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setBuilding(data);
+        setPropTraxId(data.propTraxBuildingId ?? '');
+      }
       setLoading(false);
     };
     loadBuilding();
@@ -59,6 +66,24 @@ export default function BuildingDetailPage({ params }: { params: Promise<{ id: s
       <div className="p-8 text-center text-gray-500">Building not found.</div>
     );
   }
+
+  const savePropTraxId = async () => {
+    setPtxSaving(true);
+    setPtxMsg('');
+    try {
+      const res = await fetch(`${base}/buildings/${id}`, {
+        method: 'PATCH',
+        headers: { ...headers(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ propTraxBuildingId: propTraxId.trim() || null }),
+      });
+      if (res.ok) {
+        setBuilding((prev: any) => ({ ...prev, propTraxBuildingId: propTraxId.trim() || null }));
+        setPtxMsg('Saved.');
+      }
+    } finally {
+      setPtxSaving(false);
+    }
+  };
 
   const healthColor = (score?: number) => {
     if (score == null) return 'text-gray-400';
@@ -161,6 +186,39 @@ export default function BuildingDetailPage({ params }: { params: Promise<{ id: s
             <p className="text-sm text-gray-600 whitespace-pre-wrap">
               {building.notes || 'No notes.'}
             </p>
+          </div>
+
+          {/* PropTrax linking */}
+          <div className="col-span-2 bg-white border border-gray-200 rounded-lg p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <h2 className="text-sm font-semibold text-gray-900">PropTrax Integration</h2>
+              {building.propTraxBuildingId ? (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium">Linked</span>
+              ) : (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">Not linked</span>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              Link this building to PropTrax so FieldMind AI analysis and maintenance events sync across.
+              Enter the building ID from PropTrax.
+            </p>
+            <div className="flex gap-2 max-w-sm">
+              <input
+                type="text"
+                value={propTraxId}
+                onChange={(e) => setPropTraxId(e.target.value)}
+                placeholder="PropTrax building ID"
+                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+              />
+              <button
+                onClick={savePropTraxId}
+                disabled={ptxSaving}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {ptxSaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+            {ptxMsg && <p className="text-xs text-green-600 mt-1">{ptxMsg}</p>}
           </div>
         </div>
       )}

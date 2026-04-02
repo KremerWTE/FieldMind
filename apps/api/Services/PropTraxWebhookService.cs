@@ -29,14 +29,15 @@ public class PropTraxWebhookService
         AiAnnotation annotation,
         MaintenanceEvent? maintenanceEvent)
     {
-        var team = await context.Teams.FirstOrDefaultAsync(t => t.Id == photo.Building.Team.Id
-            || context.Buildings.Any(b => b.Id == photo.BuildingId && b.TeamId == t.Id));
+        var building = await context.Buildings
+            .Include(b => b.Team)
+            .FirstOrDefaultAsync(b => b.Id == photo.BuildingId);
 
-        if (team == null || string.IsNullOrEmpty(team.PropTraxWebhookUrl))
+        if (building == null || string.IsNullOrEmpty(building.PropTraxBuildingId))
             return;
 
-        var building = await context.Buildings.FirstOrDefaultAsync(b => b.Id == photo.BuildingId);
-        if (building == null || string.IsNullOrEmpty(building.PropTraxBuildingId))
+        var team = building.Team;
+        if (team == null || string.IsNullOrEmpty(team.PropTraxWebhookUrl))
             return;
 
         var payload = new

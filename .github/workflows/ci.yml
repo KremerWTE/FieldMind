@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main, kremer-dev]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ─── .NET API ──────────────────────────────────────────────────────────────
+  api:
+    name: API (build + test)
+    runs-on: ubuntu-latest
+
+    env:
+      # Tests use EF Core InMemory — no real DB needed
+      JWT__Secret: "ci-test-jwt-secret-must-be-at-least-32-chars-long-for-hmac"
+      ASPNETCORE_ENVIRONMENT: Development
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build and test
+        run: dotnet test apps/api.tests/FieldMind.Api.Tests.csproj -c Release -v normal
+
+  # ─── Next.js Web ──────────────────────────────────────────────────────────
+  web:
+    name: Web (build)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        # --ignore-scripts skips Expo/React Native native postinstall scripts
+        # that fail on Linux CI (not needed for the web build)
+        run: npm ci --ignore-scripts
+
+      - name: Build web
+        run: npm run build -w @fieldmind/web
+        env:
+          NEXT_IGNORE_INCORRECT_LOCKFILE: "1"
+          NEXT_PUBLIC_API_URL: "http://localhost:3001"
+
+  # ─── Docker image ─────────────────────────────────────────────────────────
+  docker:
+    name: Docker (build)
+    runs-on: ubuntu-latest
+    needs: [api]
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build API Docker image
+        run: docker build -t fieldmind-api:${{ github.sha }} apps/api/

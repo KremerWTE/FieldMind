@@ -22,17 +22,23 @@ interface UploadItem {
   error?: string;
 }
 
-export default function UploadScreen() {
+export default function UploadScreen({ route }: any) {
   const [buildings, setBuildings] = useState<{ id: string; name: string }[]>([]);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
-  const [selectedBuilding, setSelectedBuilding] = useState('');
-  const [selectedProject, setSelectedProject] = useState('');
+  const [selectedBuilding, setSelectedBuilding] = useState(route?.params?.buildingId ?? '');
+  const [selectedProject, setSelectedProject] = useState(route?.params?.projectId ?? '');
   const [queue, setQueue] = useState<UploadItem[]>([]);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     loadMeta();
   }, []);
+
+  // Update selection if navigation params change (e.g. navigated from JobSiteSelectScreen)
+  useEffect(() => {
+    if (route?.params?.buildingId) setSelectedBuilding(route.params.buildingId);
+    if (route?.params?.projectId) setSelectedProject(route.params.projectId);
+  }, [route?.params?.buildingId, route?.params?.projectId]);
 
   const authHeaders = async (json = false): Promise<Record<string, string>> => {
     const token = await SecureStore.getItemAsync('accessToken');

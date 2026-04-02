@@ -42,6 +42,12 @@ public class BuildingListResponse
     public PaginationMeta Meta { get; set; } = new();
 }
 
+public class ResolveMaintenanceEventDto
+{
+    public string Status { get; set; } = "Resolved"; // Resolved | Monitoring
+    public string? ResolutionNotes { get; set; }
+}
+
 public class PaginationMeta
 {
     public int Total { get; set; }

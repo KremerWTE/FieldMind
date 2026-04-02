@@ -50,8 +50,10 @@ TestResults/
 .env
 .env.*
 !.env.example
-appsettings.Production.json
+!.env.production.example
+!.env.staging.example
 appsettings.Staging.json
+# appsettings.Production.json is tracked — contains only non-secret production defaults
 secrets.json
 *.pfx
 *.p12

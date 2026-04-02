@@ -166,9 +166,27 @@ public class BuildingsService
             me.DetectedBy,
             me.CreatedAt,
             me.ResolvedAt,
+            me.ResolutionNotes,
             BuildingId = me.BuildingId,
             BuildingName = me.Building?.Name,
         }).ToList();
+    }
+
+    public async Task<MaintenanceEvent?> ResolveMaintenanceEvent(string eventId, string teamId, MaintenanceEventStatus newStatus, string? resolutionNotes)
+    {
+        var evt = await _context.MaintenanceEvents
+            .Include(me => me.Building)
+            .FirstOrDefaultAsync(me => me.Id == eventId && me.Building.TeamId == teamId);
+
+        if (evt == null) return null;
+
+        evt.Status = newStatus;
+        evt.ResolutionNotes = resolutionNotes;
+        if (newStatus == MaintenanceEventStatus.Resolved)
+            evt.ResolvedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return evt;
     }
 
     public async Task<List<MaintenanceEvent>> GetBuildingMaintenanceEvents(string buildingId, string teamId)

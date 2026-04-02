@@ -504,7 +504,76 @@ public class DbSeeder
 
             _context.PhotoTasks.AddRange(task1, task2, task3);
 
-            // 12. Create Alert Rules for Monitoring
+            // 12. Create Payroll Periods
+            var today = DateTime.UtcNow.Date;
+            var currentMonday = today.AddDays(-(int)today.DayOfWeek == 0 ? 6 : (int)today.DayOfWeek - 1);
+            var lastMonday = currentMonday.AddDays(-7);
+            var twoWeeksAgoMonday = currentMonday.AddDays(-14);
+
+            var currentPeriod = new PayrollPeriod
+            {
+                Id = Guid.NewGuid().ToString(),
+                TeamId = team.Id,
+                PeriodStart = currentMonday,
+                PeriodEnd = currentMonday.AddDays(6).AddHours(23).AddMinutes(59).AddSeconds(59),
+                Status = PayrollStatus.Draft,
+                CreatedAt = currentMonday,
+                UpdatedAt = currentMonday
+            };
+
+            var lastPeriod = new PayrollPeriod
+            {
+                Id = Guid.NewGuid().ToString(),
+                TeamId = team.Id,
+                PeriodStart = lastMonday,
+                PeriodEnd = lastMonday.AddDays(6).AddHours(23).AddMinutes(59).AddSeconds(59),
+                Status = PayrollStatus.Approved,
+                SubmittedById = adminUser.Id,
+                SubmittedAt = currentMonday.AddHours(9),
+                CreatedAt = lastMonday,
+                UpdatedAt = currentMonday
+            };
+
+            var olderPeriod = new PayrollPeriod
+            {
+                Id = Guid.NewGuid().ToString(),
+                TeamId = team.Id,
+                PeriodStart = twoWeeksAgoMonday,
+                PeriodEnd = twoWeeksAgoMonday.AddDays(6).AddHours(23).AddMinutes(59).AddSeconds(59),
+                Status = PayrollStatus.Submitted,
+                SubmittedById = adminUser.Id,
+                SubmittedAt = lastMonday.AddHours(9),
+                CreatedAt = twoWeeksAgoMonday,
+                UpdatedAt = lastMonday
+            };
+
+            _context.PayrollPeriods.AddRange(currentPeriod, lastPeriod, olderPeriod);
+
+            // 13. Create Time Entries — last 2 weeks + current week
+            var timeEntries = new List<TimeEntry>
+            {
+                // Current week — field tech, 3 days
+                new TimeEntry { Id = Guid.NewGuid().ToString(), UserId = fieldTech.Id, TeamId = team.Id, Location = "Downtown Office Complex", ClockIn = currentMonday.AddHours(7).AddMinutes(45), ClockOut = currentMonday.AddHours(16).AddMinutes(30), IsApproved = false, CreatedAt = currentMonday },
+                new TimeEntry { Id = Guid.NewGuid().ToString(), UserId = fieldTech.Id, TeamId = team.Id, Location = "Riverside Apartments", ClockIn = currentMonday.AddDays(1).AddHours(8), ClockOut = currentMonday.AddDays(1).AddHours(17), IsApproved = false, CreatedAt = currentMonday.AddDays(1) },
+                new TimeEntry { Id = Guid.NewGuid().ToString(), UserId = fieldTech.Id, TeamId = team.Id, Location = "Industrial Warehouse #7", ClockIn = currentMonday.AddDays(2).AddHours(7).AddMinutes(30), ClockOut = currentMonday.AddDays(2).AddHours(15).AddMinutes(45), IsApproved = false, CreatedAt = currentMonday.AddDays(2) },
+                // Current week — PM
+                new TimeEntry { Id = Guid.NewGuid().ToString(), UserId = pmUser.Id, TeamId = team.Id, Location = "Office", ClockIn = currentMonday.AddHours(8), ClockOut = currentMonday.AddHours(17), IsApproved = false, CreatedAt = currentMonday },
+                new TimeEntry { Id = Guid.NewGuid().ToString(), UserId = pmUser.Id, TeamId = team.Id, Location = "Downtown Office Complex", ClockIn = currentMonday.AddDays(1).AddHours(8).AddMinutes(30), ClockOut = currentMonday.AddDays(1).AddHours(16), IsApproved = false, CreatedAt = currentMonday.AddDays(1) },
+
+                // Last week — field tech, full week
+                new TimeEntry { Id = Guid.NewGuid().ToString(), UserId = fieldTech.Id, TeamId = team.Id, Location = "Downtown Office Complex", ClockIn = lastMonday.AddHours(7).AddMinutes(50), ClockOut = lastMonday.AddHours(16).AddMinutes(20), IsApproved = true, CreatedAt = lastMonday },
+                new TimeEntry { Id = Guid.NewGuid().ToString(), UserId = fieldTech.Id, TeamId = team.Id, Location = "Riverside Apartments", ClockIn = lastMonday.AddDays(1).AddHours(8), ClockOut = lastMonday.AddDays(1).AddHours(17).AddMinutes(15), IsApproved = true, CreatedAt = lastMonday.AddDays(1) },
+                new TimeEntry { Id = Guid.NewGuid().ToString(), UserId = fieldTech.Id, TeamId = team.Id, Location = "Industrial Warehouse #7", ClockIn = lastMonday.AddDays(2).AddHours(7).AddMinutes(45), ClockOut = lastMonday.AddDays(2).AddHours(16), IsApproved = true, CreatedAt = lastMonday.AddDays(2) },
+                new TimeEntry { Id = Guid.NewGuid().ToString(), UserId = fieldTech.Id, TeamId = team.Id, Location = "Downtown Office Complex", ClockIn = lastMonday.AddDays(3).AddHours(8), ClockOut = lastMonday.AddDays(3).AddHours(17), IsApproved = true, CreatedAt = lastMonday.AddDays(3) },
+                new TimeEntry { Id = Guid.NewGuid().ToString(), UserId = fieldTech.Id, TeamId = team.Id, Location = "Office", ClockIn = lastMonday.AddDays(4).AddHours(8).AddMinutes(15), ClockOut = lastMonday.AddDays(4).AddHours(15).AddMinutes(30), IsApproved = true, CreatedAt = lastMonday.AddDays(4) },
+                // Last week — PM
+                new TimeEntry { Id = Guid.NewGuid().ToString(), UserId = pmUser.Id, TeamId = team.Id, Location = "Office", ClockIn = lastMonday.AddHours(8), ClockOut = lastMonday.AddHours(17), IsApproved = true, CreatedAt = lastMonday },
+                new TimeEntry { Id = Guid.NewGuid().ToString(), UserId = pmUser.Id, TeamId = team.Id, Location = "Riverside Apartments", ClockIn = lastMonday.AddDays(2).AddHours(9), ClockOut = lastMonday.AddDays(2).AddHours(14).AddMinutes(30), IsApproved = true, CreatedAt = lastMonday.AddDays(2) },
+            };
+
+            _context.TimeEntries.AddRange(timeEntries);
+
+            // 14. Create Alert Rules for Monitoring
             await SeedAlertRules();
 
             // Save all changes
@@ -525,6 +594,8 @@ public class DbSeeder
             _logger.LogInformation("  - 7 Building health stats");
             _logger.LogInformation("  - 2 Photo notes");
             _logger.LogInformation("  - 3 Photo tasks");
+            _logger.LogInformation("  - 3 Payroll periods (current/last/older week)");
+            _logger.LogInformation("  - 12 Time entries across 2 weeks");
         }
         catch (Exception ex)
         {

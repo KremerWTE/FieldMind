@@ -69,6 +69,14 @@ public class UserProfileController : ControllerBase
         return Ok(new { message = "Password changed successfully" });
     }
 
+    [HttpPost("push-token")]
+    public async Task<IActionResult> RegisterPushToken([FromBody] PushTokenRequest request)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+        await _userService.SavePushToken(userId, request.Token, request.Platform);
+        return Ok(new { message = "Push token registered." });
+    }
+
     [HttpGet("activity")]
     public async Task<IActionResult> GetActivity([FromQuery] int limit = 50)
     {

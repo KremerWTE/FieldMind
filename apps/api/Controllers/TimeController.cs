@@ -42,11 +42,25 @@ public class TimeController : ControllerBase
         if (open != null)
             return BadRequest(new { message = "You are already clocked in. Clock out first." });
 
+        DateTime clockIn;
+        if (dto.ClockInTime.HasValue)
+        {
+            clockIn = dto.ClockInTime.Value.ToUniversalTime();
+            if (clockIn > DateTime.UtcNow)
+                return BadRequest(new { message = "Clock-in time cannot be in the future." });
+            if (clockIn < DateTime.UtcNow.AddHours(-24))
+                return BadRequest(new { message = "Clock-in time cannot be more than 24 hours ago." });
+        }
+        else
+        {
+            clockIn = DateTime.UtcNow;
+        }
+
         var entry = new TimeEntry
         {
             UserId = userId,
             TeamId = teamId,
-            ClockIn = DateTime.UtcNow,
+            ClockIn = clockIn,
             Location = dto.Location,
             Notes = dto.Notes,
         };
@@ -452,6 +466,8 @@ public class ClockInDto
 {
     public string Location { get; set; } = string.Empty;
     public string? Notes { get; set; }
+    /// <summary>Optional backdated clock-in time. Must be in the past and within the last 24 hours.</summary>
+    public DateTime? ClockInTime { get; set; }
 }
 
 public class ClockOutDto

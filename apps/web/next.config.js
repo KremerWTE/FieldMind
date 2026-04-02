@@ -2,8 +2,14 @@
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@fieldmind/shared'],
+  env: {
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+  },
   images: {
-    domains: ['fieldmind-photos-dev.s3.amazonaws.com'],
+    domains: [
+      'fieldmind-photos-dev.s3.amazonaws.com',
+      'fieldmind-photos-prod.s3.amazonaws.com',
+    ],
   },
 };
 

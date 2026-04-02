@@ -10,7 +10,10 @@ import {
   Platform,
 } from 'react-native';
 import * as Location from 'expo-location';
+import * as SecureStore from 'expo-secure-store';
 import apiService from '../services/api.service';
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001';
 
 /**
  * JobSiteSelectScreen - Quick building/project selection for field workers
@@ -40,6 +43,9 @@ interface Project {
   status: string;
 }
 
+// health: 'good' | 'fair' | 'critical'
+type HealthStatus = 'good' | 'fair' | 'critical';
+
 export default function JobSiteSelectScreen({ navigation }: any) {
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -48,6 +54,7 @@ export default function JobSiteSelectScreen({ navigation }: any) {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [currentLocation, setCurrentLocation] = useState<any>(null);
+  const [buildingHealth, setBuildingHealth] = useState<Record<string, HealthStatus>>({});
   const [selectedView, setSelectedView] = useState<'nearby' | 'all' | 'recent'>('nearby');
 
   useEffect(() => {
@@ -118,6 +125,33 @@ export default function JobSiteSelectScreen({ navigation }: any) {
       // TODO: Load from AsyncStorage
       setRecentSites([]);
 
+      // Fetch open maintenance events to derive building health scores
+      try {
+        const token = await SecureStore.getItemAsync('accessToken');
+        const evtRes = await fetch(
+          `${API_URL}/buildings/maintenance-events?status=Open&limit=500`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (evtRes.ok) {
+          const evtData = await evtRes.json();
+          const events: any[] = evtData.events ?? [];
+          const health: Record<string, HealthStatus> = {};
+          for (const evt of events) {
+            const bid = evt.buildingId;
+            if (!bid) continue;
+            const isCritical = evt.severity === 'Critical';
+            if (isCritical) {
+              health[bid] = 'critical';
+            } else if (health[bid] !== 'critical') {
+              health[bid] = 'fair';
+            }
+          }
+          setBuildingHealth(health);
+        }
+      } catch {
+        // non-critical — skip health scores
+      }
+
       setLoading(false);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -161,17 +195,17 @@ export default function JobSiteSelectScreen({ navigation }: any) {
     return `${(meters / 1000).toFixed(1)}km away`;
   };
 
-  const selectProject = (project: Project) => {
+  const selectProject = (project: Project, mode: 'capture' | 'upload' = 'capture') => {
     const building = buildings.find(b => b.id === project.buildingId);
 
-    // Save to recent sites
-    // TODO: Save to AsyncStorage
-
-    // Navigate to QuickCapture
-    navigation.navigate('QuickCapture', {
-      project,
-      building
-    });
+    if (mode === 'upload') {
+      navigation.navigate('Main', {
+        screen: 'Upload',
+        params: { buildingId: project.buildingId, projectId: project.id },
+      });
+    } else {
+      navigation.navigate('QuickCapture', { project, building });
+    }
   };
 
   const filteredProjects = projects.filter(project =>
@@ -282,10 +316,9 @@ export default function JobSiteSelectScreen({ navigation }: any) {
           getDisplayProjects().map(project => {
             const building = buildings.find(b => b.id === project.buildingId);
             return (
-              <TouchableOpacity
+              <View
                 key={project.id}
                 style={styles.projectCard}
-                onPress={() => selectProject(project)}
               >
                 <View style={styles.projectHeader}>
                   <Text style={styles.projectName}>{project.name}</Text>
@@ -296,7 +329,21 @@ export default function JobSiteSelectScreen({ navigation }: any) {
                   )}
                 </View>
 
-                <Text style={styles.buildingName}>🏢 {project.buildingName}</Text>
+                <View style={styles.buildingRow}>
+                  <Text style={styles.buildingName}>🏢 {project.buildingName}</Text>
+                  {(() => {
+                    const h = buildingHealth[project.buildingId];
+                    if (!h || h === 'good') return null;
+                    const isC = h === 'critical';
+                    return (
+                      <View style={[styles.healthBadge, isC ? styles.healthCritical : styles.healthFair]}>
+                        <Text style={[styles.healthBadgeText, isC ? styles.healthCriticalText : styles.healthFairText]}>
+                          {isC ? '⚠ Critical' : '⚡ Issues'}
+                        </Text>
+                      </View>
+                    );
+                  })()}
+                </View>
 
                 {building?.address && (
                   <Text style={styles.address}>📍 {building.address}</Text>
@@ -309,9 +356,20 @@ export default function JobSiteSelectScreen({ navigation }: any) {
                 )}
 
                 <View style={styles.projectFooter}>
-                  <Text style={styles.startButton}>Start Capturing →</Text>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => selectProject(project, 'capture')}
+                  >
+                    <Text style={styles.actionButtonText}>📷 Quick Capture</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.actionButtonSecondary]}
+                    onPress={() => selectProject(project, 'upload')}
+                  >
+                    <Text style={[styles.actionButtonText, styles.actionButtonSecondaryText]}>☁️ Upload</Text>
+                  </TouchableOpacity>
                 </View>
-              </TouchableOpacity>
+              </View>
             );
           })
         )}
@@ -448,11 +506,27 @@ const styles = StyleSheet.create({
     color: '#065f46',
     fontWeight: '600',
   },
+  buildingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
   buildingName: {
     fontSize: 16,
     color: '#4b5563',
-    marginBottom: 4,
+    flex: 1,
   },
+  healthBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  healthCritical: { backgroundColor: '#fee2e2' },
+  healthFair: { backgroundColor: '#fef3c7' },
+  healthBadgeText: { fontSize: 11, fontWeight: '600' },
+  healthCriticalText: { color: '#b91c1c' },
+  healthFairText: { color: '#92400e' },
   address: {
     fontSize: 14,
     color: '#6b7280',
@@ -465,16 +539,32 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   projectFooter: {
+    flexDirection: 'row',
+    gap: 8,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
     paddingTop: 12,
     marginTop: 8,
   },
-  startButton: {
-    fontSize: 16,
-    color: '#2563eb',
-    fontWeight: 'bold',
-    textAlign: 'center',
+  actionButton: {
+    flex: 1,
+    backgroundColor: '#2563eb',
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  actionButtonSecondary: {
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  actionButtonSecondaryText: {
+    color: '#374151',
   },
   tipCard: {
     backgroundColor: '#fef3c7',

@@ -35,6 +35,10 @@ public class User
     // PIN login (SHA-256 hash of the 8-digit numeric code)
     public string? Pin { get; set; }
 
+    // Push notifications
+    public string? ExpoPushToken { get; set; }
+    public string? PushTokenPlatform { get; set; } // ios | android
+
     // Password reset
     public string? PasswordResetToken { get; set; }
     public DateTime? PasswordResetExpiry { get; set; }

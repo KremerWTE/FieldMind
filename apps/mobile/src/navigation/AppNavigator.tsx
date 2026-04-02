@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, Text } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import offlineService from '../services/offline.service';
 import * as SecureStore from 'expo-secure-store';
 import LoginScreen from '../screens/LoginScreen';
 import ForgotPinScreen from '../screens/ForgotPinScreen';
 import JobSiteSelectScreen from '../screens/JobSiteSelectScreen';
 import QuickCaptureScreen from '../screens/QuickCaptureScreen';
+import PhotosScreen from '../screens/PhotosScreen';
 import ProjectsScreen from '../screens/ProjectsScreen';
 import UploadScreen from '../screens/UploadScreen';
 import TimeClockScreen from '../screens/TimeClockScreen';
@@ -14,7 +16,7 @@ import TimeClockScreen from '../screens/TimeClockScreen';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-function MainTabs({ onLogout }: { onLogout: () => void }) {
+function MainTabs({ onLogout, pendingUploads }: { onLogout: () => void; pendingUploads: number }) {
   return (
     <Tab.Navigator
       screenOptions={{
@@ -40,7 +42,10 @@ function MainTabs({ onLogout }: { onLogout: () => void }) {
       <Tab.Screen
         name="Upload"
         component={UploadScreen}
-        options={{ title: 'Upload' }}
+        options={{
+          title: 'Upload',
+          tabBarBadge: pendingUploads > 0 ? pendingUploads : undefined,
+        }}
       />
     </Tab.Navigator>
   );
@@ -49,9 +54,17 @@ function MainTabs({ onLogout }: { onLogout: () => void }) {
 export default function AppNavigator() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [pendingUploads, setPendingUploads] = useState(0);
 
   useEffect(() => {
     checkAuth();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = offlineService.subscribe((queue) => {
+      setPendingUploads(queue.length);
+    });
+    return unsubscribe;
   }, []);
 
   const checkAuth = async () => {
@@ -101,12 +114,17 @@ export default function AppNavigator() {
       ) : (
         <>
           <Stack.Screen name="Main">
-            {(props) => <MainTabs {...props} onLogout={handleLogout} />}
+            {(props) => <MainTabs {...props} onLogout={handleLogout} pendingUploads={pendingUploads} />}
           </Stack.Screen>
           <Stack.Screen
             name="QuickCapture"
             component={QuickCaptureScreen}
             options={{ headerShown: true, title: 'Capture Photo' }}
+          />
+          <Stack.Screen
+            name="Photos"
+            component={PhotosScreen}
+            options={{ headerShown: true, title: 'Photos' }}
           />
         </>
       )}

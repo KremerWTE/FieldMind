@@ -561,4 +561,13 @@ public class UserManagementService
         var value = (BitConverter.ToUInt32(bytes) % 100_000_000);
         return value.ToString("D8");
     }
+
+    public async Task SavePushToken(string userId, string token, string? platform)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return;
+        user.ExpoPushToken = token;
+        user.PushTokenPlatform = platform;
+        await _context.SaveChangesAsync();
+    }
 }

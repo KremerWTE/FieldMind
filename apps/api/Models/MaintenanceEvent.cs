@@ -43,6 +43,8 @@ public class MaintenanceEvent
 
     public ICollection<Photo> RelatedPhotos { get; set; } = new List<Photo>();
 
+    public string? ResolutionNotes { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ResolvedAt { get; set; }
 }

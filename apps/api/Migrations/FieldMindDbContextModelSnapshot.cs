@@ -200,6 +200,9 @@ namespace FieldMind.Api.Migrations
                     b.Property<int>("DetectedBy")
                         .HasColumnType("integer");
 
+                    b.Property<string?>("ResolutionNotes")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("ResolvedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -623,6 +626,12 @@ namespace FieldMind.Api.Migrations
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string?>("ExpoPushToken")
+                        .HasColumnType("text");
+
+                    b.Property<string?>("PushTokenPlatform")
                         .HasColumnType("text");
 
                     b.Property<int>("Role")

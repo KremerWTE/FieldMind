@@ -94,6 +94,19 @@ public class BuildingsController : ControllerBase
         return Ok(events);
     }
 
+    [HttpPatch("maintenance-events/{eventId}/resolve")]
+    public async Task<IActionResult> ResolveMaintenanceEvent(string eventId, [FromBody] ResolveMaintenanceEventDto dto)
+    {
+        var teamId = GetTeamId();
+
+        if (!Enum.TryParse<FieldMind.Api.Models.MaintenanceEventStatus>(dto.Status, true, out var newStatus))
+            return BadRequest(new { message = "Status must be Monitoring or Resolved." });
+
+        var evt = await _buildingsService.ResolveMaintenanceEvent(eventId, teamId, newStatus, dto.ResolutionNotes);
+        if (evt == null) return NotFound();
+        return Ok(new { evt.Id, evt.Status, evt.ResolvedAt, evt.ResolutionNotes });
+    }
+
     [HttpGet("{id}/health-stats")]
     public async Task<IActionResult> GetBuildingHealthStats(string id)
     {

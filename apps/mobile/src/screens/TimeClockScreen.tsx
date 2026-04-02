@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Platform,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
@@ -43,6 +44,9 @@ export default function TimeClockScreen() {
   const [actionLoading, setActionLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [now, setNow] = useState(new Date());
+  const [locationText, setLocationText] = useState('');
+  const [lateStart, setLateStart] = useState(false);
+  const [lateStartTime, setLateStartTime] = useState(''); // HH:MM format
 
   // Live clock
   useEffect(() => {
@@ -99,13 +103,33 @@ export default function TimeClockScreen() {
         geoLng = loc.coords.longitude;
       }
 
+      let clockInTime: string | undefined;
+      if (lateStart && lateStartTime) {
+        const [hours, minutes] = lateStartTime.split(':').map(Number);
+        if (!isNaN(hours) && !isNaN(minutes)) {
+          const d = new Date();
+          d.setHours(hours, minutes, 0, 0);
+          // If the time is in the future (e.g. 11pm entered at midnight), subtract a day
+          if (d > new Date()) d.setDate(d.getDate() - 1);
+          clockInTime = d.toISOString();
+        }
+      }
+
       const response = await fetch(`${API_URL}/time/clock-in`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ geoLat, geoLng }),
+        body: JSON.stringify({
+          location: locationText.trim() || 'On-site',
+          geoLat,
+          geoLng,
+          ...(clockInTime ? { clockInTime } : {}),
+        }),
       });
 
       if (response.ok) {
+        setLocationText('');
+        setLateStart(false);
+        setLateStartTime('');
         await loadData();
       } else {
         const err = await response.json().catch(() => ({}));
@@ -222,6 +246,14 @@ export default function TimeClockScreen() {
               <View style={[styles.statusDot, styles.statusDotOff]} />
               <Text style={[styles.statusText, styles.statusTextOff]}>Not Clocked In</Text>
             </View>
+            <TextInput
+              style={styles.locationInput}
+              placeholder="Job site / location (optional)"
+              placeholderTextColor="#9ca3af"
+              value={locationText}
+              onChangeText={setLocationText}
+              returnKeyType="done"
+            />
             <TouchableOpacity
               style={[styles.clockButton, styles.clockInButton, actionLoading && styles.buttonDisabled]}
               onPress={handleClockIn}
@@ -233,6 +265,35 @@ export default function TimeClockScreen() {
                 <Text style={styles.clockButtonText}>Clock In</Text>
               )}
             </TouchableOpacity>
+            {/* Late start toggle */}
+            <TouchableOpacity
+              style={styles.lateStartToggle}
+              onPress={() => {
+                if (!lateStart) {
+                  const d = new Date(Date.now() - 30 * 60 * 1000);
+                  setLateStartTime(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
+                }
+                setLateStart(!lateStart);
+              }}
+            >
+              <Text style={styles.lateStartToggleText}>
+                {lateStart ? '✕ Cancel start time adjustment' : 'I arrived earlier — set actual start time'}
+              </Text>
+            </TouchableOpacity>
+            {lateStart && (
+              <View style={styles.lateStartRow}>
+                <Text style={styles.lateStartLabel}>Start time (HH:MM, 24h)</Text>
+                <TextInput
+                  style={styles.lateStartInput}
+                  value={lateStartTime}
+                  onChangeText={setLateStartTime}
+                  placeholder="e.g. 07:30"
+                  keyboardType="numbers-and-punctuation"
+                  maxLength={5}
+                />
+                <Text style={styles.lateStartHint}>Within the last 24 hours</Text>
+              </View>
+            )}
           </>
         )}
       </View>
@@ -388,6 +449,58 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     letterSpacing: 0.5,
+  },
+  locationInput: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: '#1f2937',
+    backgroundColor: '#f9fafb',
+    marginBottom: 12,
+  },
+  lateStartToggle: {
+    marginTop: 12,
+    paddingVertical: 6,
+  },
+  lateStartToggleText: {
+    fontSize: 13,
+    color: '#2563eb',
+    textAlign: 'center',
+  },
+  lateStartRow: {
+    width: '100%',
+    marginTop: 8,
+    backgroundColor: '#eff6ff',
+    borderRadius: 10,
+    padding: 12,
+  },
+  lateStartLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginBottom: 6,
+  },
+  lateStartInput: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#93c5fd',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1f2937',
+    letterSpacing: 2,
+    textAlign: 'center',
+  },
+  lateStartHint: {
+    fontSize: 11,
+    color: '#9ca3af',
+    marginTop: 4,
+    textAlign: 'center',
   },
   section: {
     margin: 16,

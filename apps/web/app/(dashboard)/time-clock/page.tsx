@@ -34,6 +34,8 @@ export default function TimeClockPage() {
   });
   const [location, setLocation] = useState('');
   const [notes, setNotes] = useState('');
+  const [lateStart, setLateStart] = useState(false);
+  const [lateStartTime, setLateStartTime] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [clock, setClock] = useState(new Date());
@@ -148,14 +150,20 @@ export default function TimeClockPage() {
     setSubmitting(true);
     setMessage({ type: '', text: '' });
     try {
+      const body: Record<string, unknown> = { location, notes };
+      if (lateStart && lateStartTime) {
+        body.clockInTime = new Date(lateStartTime).toISOString();
+      }
       const res = await fetch(`${base}/time/clock-in`, {
         method: 'POST',
         headers: authH(true),
-        body: JSON.stringify({ location, notes }),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         setMessage({ type: 'success', text: 'Clocked in!' });
         setNotes('');
+        setLateStart(false);
+        setLateStartTime('');
         await fetchStatus();
       } else {
         const d = await res.json().catch(() => ({}));
@@ -287,18 +295,50 @@ export default function TimeClockPage() {
           {/* Form */}
           <div className="bg-white border border-gray-200 rounded-lg p-5 mb-8">
             {!status.isClockedIn && (
-              <div className="mb-3">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Location <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="e.g. 123 Main St, Site 4"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              <>
+                <div className="mb-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Location <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="e.g. 123 Main St, Site 4"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
+                    <input
+                      type="checkbox"
+                      checked={lateStart}
+                      onChange={(e) => {
+                        setLateStart(e.target.checked);
+                        if (e.target.checked && !lateStartTime) {
+                          // default to 30 min ago
+                          const d = new Date(Date.now() - 30 * 60 * 1000);
+                          setLateStartTime(format(d, "yyyy-MM-dd'T'HH:mm"));
+                        }
+                      }}
+                      className="rounded border-gray-300 text-blue-600"
+                    />
+                    <span className="text-sm text-gray-600">I arrived earlier — set actual start time</span>
+                  </label>
+                  {lateStart && (
+                    <div className="mt-2">
+                      <input
+                        type="datetime-local"
+                        value={lateStartTime}
+                        max={format(new Date(), "yyyy-MM-dd'T'HH:mm")}
+                        onChange={(e) => setLateStartTime(e.target.value)}
+                        className="px-3 py-2 border border-blue-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Must be within the last 24 hours.</p>
+                    </div>
+                  )}
+                </div>
+              </>
             )}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>

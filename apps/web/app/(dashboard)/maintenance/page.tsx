@@ -4,15 +4,28 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+interface ResolveModal {
+  eventId: string;
+  title: string;
+  targetStatus: 'Monitoring' | 'Resolved';
+}
+
 export default function MaintenancePage() {
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [severityFilter, setSeverityFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('Open');
+  const [resolveModal, setResolveModal] = useState<ResolveModal | null>(null);
+  const [resolutionNotes, setResolutionNotes] = useState('');
+  const [resolving, setResolving] = useState(false);
 
   const token = () => localStorage.getItem('accessToken');
-  const h = () => ({ Authorization: `Bearer ${token()}` });
-  const base = process.env.NEXT_PUBLIC_API_URL;
+  const h = (json = false) => ({
+    Authorization: `Bearer ${token()}`,
+    ...(json ? { 'Content-Type': 'application/json' } : {}),
+  });
 
   useEffect(() => { fetchEvents(); }, [severityFilter, statusFilter]);
 
@@ -22,13 +35,42 @@ export default function MaintenancePage() {
     if (severityFilter) params.set('severity', severityFilter);
     if (statusFilter) params.set('status', statusFilter);
     try {
-      const res = await fetch(`${base}/buildings/maintenance-events?${params}`, { headers: h() });
+      const res = await fetch(`${API_URL}/buildings/maintenance-events?${params}`, { headers: h() });
       if (res.ok) {
         const data = await res.json();
         setEvents(data.events ?? []);
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openResolveModal = (evt: any, targetStatus: 'Monitoring' | 'Resolved') => {
+    setResolutionNotes('');
+    setResolveModal({ eventId: evt.id, title: evt.title, targetStatus });
+  };
+
+  const submitResolve = async () => {
+    if (!resolveModal) return;
+    setResolving(true);
+    try {
+      const res = await fetch(
+        `${API_URL}/buildings/maintenance-events/${resolveModal.eventId}/resolve`,
+        {
+          method: 'PATCH',
+          headers: h(true),
+          body: JSON.stringify({
+            status: resolveModal.targetStatus,
+            resolutionNotes: resolutionNotes.trim() || null,
+          }),
+        }
+      );
+      if (res.ok) {
+        setResolveModal(null);
+        fetchEvents();
+      }
+    } finally {
+      setResolving(false);
     }
   };
 
@@ -60,8 +102,8 @@ export default function MaintenancePage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Maintenance Events</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {openCount} open · {criticalCount > 0 && (
-              <span className="text-red-600 font-medium">{criticalCount} critical</span>
+            {openCount} open{criticalCount > 0 && (
+              <> · <span className="text-red-600 font-medium">{criticalCount} critical</span></>
             )}
           </p>
         </div>
@@ -122,7 +164,7 @@ export default function MaintenancePage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                {['Building', 'Issue', 'Severity', 'Type', 'Status', 'Source', 'Date'].map((col) => (
+                {['Building', 'Issue', 'Severity', 'Type', 'Status', 'Source', 'Date', 'Actions'].map((col) => (
                   <th key={col} className="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {col}
                   </th>
@@ -146,6 +188,9 @@ export default function MaintenancePage() {
                     {e.description && (
                       <p className="text-xs text-gray-500 truncate max-w-xs mt-0.5">{e.description}</p>
                     )}
+                    {e.resolutionNotes && (
+                      <p className="text-xs text-green-600 mt-0.5 italic truncate max-w-xs">Note: {e.resolutionNotes}</p>
+                    )}
                   </td>
                   <td className="px-5 py-4">
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${severityBadge(e.severity)}`}>
@@ -167,10 +212,74 @@ export default function MaintenancePage() {
                   <td className="px-5 py-4 text-sm text-gray-600">
                     {e.createdAt ? format(new Date(e.createdAt), 'MMM d, yyyy') : '—'}
                   </td>
+                  <td className="px-5 py-4">
+                    {e.status !== 'Resolved' && (
+                      <div className="flex gap-2">
+                        {e.status === 'Open' && (
+                          <button
+                            onClick={() => openResolveModal(e, 'Monitoring')}
+                            className="text-xs px-2 py-1 rounded border border-yellow-300 text-yellow-700 hover:bg-yellow-50 whitespace-nowrap"
+                          >
+                            Monitor
+                          </button>
+                        )}
+                        <button
+                          onClick={() => openResolveModal(e, 'Resolved')}
+                          className="text-xs px-2 py-1 rounded border border-green-300 text-green-700 hover:bg-green-50 whitespace-nowrap"
+                        >
+                          Resolve
+                        </button>
+                      </div>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Resolve Modal */}
+      {resolveModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+            <h2 className="text-lg font-semibold text-gray-900 mb-1">
+              {resolveModal.targetStatus === 'Resolved' ? 'Resolve event' : 'Mark as monitoring'}
+            </h2>
+            <p className="text-sm text-gray-500 mb-4 truncate">{resolveModal.title}</p>
+
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Resolution notes <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <textarea
+              value={resolutionNotes}
+              onChange={(e) => setResolutionNotes(e.target.value)}
+              rows={3}
+              placeholder="Describe what was done or observed…"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              autoFocus
+            />
+
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => setResolveModal(null)}
+                className="flex-1 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitResolve}
+                disabled={resolving}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 ${
+                  resolveModal.targetStatus === 'Resolved'
+                    ? 'bg-green-600 hover:bg-green-700'
+                    : 'bg-yellow-500 hover:bg-yellow-600'
+                }`}
+              >
+                {resolving ? 'Saving…' : resolveModal.targetStatus === 'Resolved' ? 'Mark resolved' : 'Mark monitoring'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

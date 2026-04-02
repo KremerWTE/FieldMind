@@ -11,7 +11,7 @@ import * as SecureStore from 'expo-secure-store';
  * - Type-safe API calls
  */
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001';
 
 class ApiService {
   private client: AxiosInstance;
@@ -100,9 +100,16 @@ class ApiService {
   // Auth endpoints
   async login(email: string, password: string) {
     const response = await this.client.post('/auth/login', { email, password });
-    const { token, refreshToken, user } = response.data;
-    await this.setTokens(token, refreshToken);
-    return { user, token, refreshToken };
+    const { accessToken, refreshToken, user } = response.data;
+    await this.setTokens(accessToken, refreshToken);
+    return { user, accessToken, refreshToken };
+  }
+
+  async loginWithPin(pin: string) {
+    const response = await this.client.post('/auth/login-pin', { pin });
+    const { accessToken, refreshToken, user } = response.data;
+    await this.setTokens(accessToken, refreshToken);
+    return { user, accessToken, refreshToken };
   }
 
   async register(data: {
@@ -266,13 +273,13 @@ class ApiService {
     folderId?: string;
     tags?: string[];
     categories?: string[];
-    severity?: string;
+    minSeverity?: string;
     dateFrom?: string;
     dateTo?: string;
     page?: number;
     pageSize?: number;
   }) {
-    const response = await this.client.get('/search/photos', { params });
+    const response = await this.client.post('/search', params);
     return response.data;
   }
 
@@ -295,12 +302,12 @@ class ApiService {
     password?: string;
     expiresAt?: string;
   }) {
-    const response = await this.client.post('/share-links', data);
+    const response = await this.client.post('/share/links', data);
     return response.data;
   }
 
   async getShareLinks() {
-    const response = await this.client.get('/share-links');
+    const response = await this.client.get('/share/links');
     return response.data;
   }
 

@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main, kremer-dev]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── .NET API Build & Test ────────────────────────────────────────────────────
+  api:
+    name: API (dotnet)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: |
+          dotnet restore apps/api/FieldMind.Api.csproj
+          dotnet restore apps/api.tests/FieldMind.Api.Tests.csproj
+
+      - name: Build
+        run: dotnet build apps/api/FieldMind.Api.csproj --no-restore -c Release
+
+      - name: Run Tests
+        run: dotnet test apps/api.tests/FieldMind.Api.Tests.csproj --no-restore --logger "console;verbosity=normal"
+
+  # ── Next.js Web Build ────────────────────────────────────────────────────────
+  web:
+    name: Web (next.js)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      # Install from the monorepo root so npm workspaces hoisting works correctly.
+      # Next.js then runs in the workspace member without needing its own lockfile.
+      - name: Install dependencies (root)
+        run: npm ci
+
+      # NEXT_PRIVATE_SKIP_PATCHING=1 suppresses the lockfile-patching step that
+      # fails with ENOWORKSPACES when run inside a workspace member directory.
+      - name: Build web
+        working-directory: apps/web
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+          NEXT_IGNORE_INCORRECT_LOCKFILE: 1
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+        run: npx next build
+
+  # ── Docker Build (API image) ─────────────────────────────────────────────────
+  docker:
+    name: Docker build (API)
+    runs-on: ubuntu-latest
+    needs: api
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t fieldmind-api:ci apps/api

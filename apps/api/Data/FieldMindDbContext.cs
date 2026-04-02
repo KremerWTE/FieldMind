@@ -24,6 +24,8 @@ public class FieldMindDbContext : DbContext
     public DbSet<PhotoTask> PhotoTasks => Set<PhotoTask>();
     public DbSet<ShareLink> ShareLinks => Set<ShareLink>();
     public DbSet<ReportJob> ReportJobs => Set<ReportJob>();
+    public DbSet<TimeEntry> TimeEntries => Set<TimeEntry>();
+    public DbSet<PayrollPeriod> PayrollPeriods => Set<PayrollPeriod>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -249,6 +251,45 @@ public class FieldMindDbContext : DbContext
                 .WithMany(u => u.ActivityLogs)
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // TimeEntry
+        modelBuilder.Entity<TimeEntry>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.TeamId);
+            entity.HasIndex(e => e.ClockIn);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Team)
+                .WithMany()
+                .HasForeignKey(e => e.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Ignore(e => e.DurationHours);
+        });
+
+        // PayrollPeriod
+        modelBuilder.Entity<PayrollPeriod>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TeamId);
+            entity.HasIndex(e => new { e.TeamId, e.PeriodStart }).IsUnique();
+
+            entity.HasOne(e => e.Team)
+                .WithMany()
+                .HasForeignKey(e => e.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.SubmittedBy)
+                .WithMany()
+                .HasForeignKey(e => e.SubmittedById)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

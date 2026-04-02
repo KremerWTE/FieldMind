@@ -108,6 +108,9 @@ builder.Services.AddScoped<PDFReportService>();
 // Email Service
 builder.Services.AddSingleton<EmailService>();
 
+// SMS Service (Twilio via HttpClient)
+builder.Services.AddHttpClient<SmsService>();
+
 // Monitoring Services
 builder.Services.AddScoped<MonitoringService>();
 builder.Services.AddScoped<AlertingService>();

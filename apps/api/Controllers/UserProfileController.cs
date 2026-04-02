@@ -42,6 +42,21 @@ public class UserProfileController : ControllerBase
         return Ok(user);
     }
 
+    [HttpPost("change-pin")]
+    public async Task<IActionResult> ChangePin([FromBody] ChangePinRequest request)
+    {
+        if (string.IsNullOrEmpty(request.Pin) || request.Pin.Length != 8 || !request.Pin.All(char.IsDigit))
+            return BadRequest(new { message = "PIN must be exactly 8 digits." });
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
+        var success = await _userService.ChangePin(userId, request.Pin);
+
+        if (!success)
+            return NotFound(new { message = "User not found" });
+
+        return Ok(new { message = "PIN updated successfully." });
+    }
+
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
     {

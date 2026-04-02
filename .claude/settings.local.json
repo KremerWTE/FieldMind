@@ -18,7 +18,24 @@
       "Bash(dotnet ef:*)",
       "Bash(dotnet tool install:*)",
       "Bash(docker-compose up:*)",
-      "Bash(docker compose:*)"
+      "Bash(docker compose:*)",
+      "Bash(powershell.exe -Command \"Get-Service -Name ''postgresql*'' -ErrorAction SilentlyContinue | Select-Object Name,Status; Get-Process -Name ''postgres'' -ErrorAction SilentlyContinue | Select-Object Name,Id\")",
+      "Bash(powershell.exe -Command \"Get-Service | Where-Object {$_Name -like ''*sql*'' -or $_Name -like ''*postgres*''} | Select-Object Name, Status\")",
+      "Bash(cmd.exe /c \"sc query postgresql-x64-16 2>&1 & sc query postgresql 2>&1\")",
+      "Bash(cmd.exe /c \"docker version 2>&1\")",
+      "Bash(# Try to find docker in various Windows locations via the shell ls \"\"/c/Program Files/Docker/Docker/resources/bin/docker.exe\"\" && echo \"\"Found\"\" || true ls \"\"/c/Users/Chris Kremer/AppData/Local/Microsoft/WinGet/Packages\"\")",
+      "Bash(wsl -e sh -c \"docker ps && docker compose --version\")",
+      "Bash(# Check if Docker Desktop CLI is somewhere on disk find \"\"/c/Users/Chris Kremer\"\" -name \"\"docker.exe\"\")",
+      "Bash(wait:*)",
+      "Bash(# Check if Docker Desktop is installed via registry or known path reg query \"\"HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Uninstall\"\" /s /f \"\"Docker\"\")",
+      "Bash(# Check if there''s a .env file with different db connection, and look for any running processes ls \"\"C:\\\\Users\\\\Chris Kremer\\\\Documents\\\\GitHub\\\\FieldMind\\\\apps\\\\api\\\\.env\"\" && cat \"\"C:\\\\Users\\\\Chris Kremer\\\\Documents\\\\GitHub\\\\FieldMind\\\\apps\\\\api\\\\.env\"\" || echo \"\"No .env file\"\" # Check if netstat shows anything on 5432 netstat -an)",
+      "Bash(netstat.exe:*)",
+      "Bash(cmd.exe /c \"netstat -an | findstr 5432\")",
+      "Bash(# Check for alternative container runtimes ls \"\"/c/Users/Chris Kremer/AppData/Local/Programs/Rancher Desktop\"\" && echo \"\"Rancher Desktop found\"\" || true ls \"\"/c/Program Files/Podman\"\" && echo \"\"Podman found\"\" || true # Check scoop ls \"\"/c/Users/Chris Kremer/scoop/apps/docker\"\" && echo \"\"Docker via scoop\"\" || true ls \"\"/c/Users/Chris Kremer/scoop/apps/postgresql\"\" && echo \"\"PG via scoop\"\" || true # Check chocolatey ls \"\"/c/ProgramData/chocolatey/lib/docker-desktop\"\" && echo \"\"Docker via choco\"\" || true # Check winget-installed apps ls \"\"/c/Users/Chris Kremer/AppData/Local/Microsoft/WinGet/Packages\"\")",
+      "Bash(cmd.exe /c \"where /r \"\"C:\\\\Program Files\"\" docker.exe 2>nul\")",
+      "Bash(cmd.exe /c \"where /r \"\"%LOCALAPPDATA%\"\" docker.exe 2>nul\")",
+      "Bash(git -C \"C:\\\\Users\\\\Chris Kremer\\\\Documents\\\\GitHub\\\\FieldMind\" status)",
+      "Bash(git -C \"C:\\\\Users\\\\Chris Kremer\\\\Documents\\\\GitHub\\\\FieldMind\" log --oneline -5)"
     ]
   }
 }

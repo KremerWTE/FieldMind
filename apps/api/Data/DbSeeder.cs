@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using FieldMind.Api.Models;
 using BCrypt.Net;
@@ -39,15 +41,18 @@ public class DbSeeder
             _context.Teams.Add(team);
 
             // 2. Create Users
+            // Seed PINs: Admin=12345678, PM=87654321, Tech=11223344
             var adminUser = new User
             {
                 Id = Guid.NewGuid().ToString(),
                 Email = "admin@fieldmind.io",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"),
+                Pin = HashPin("12345678"),
                 FirstName = "Admin",
                 LastName = "User",
                 TeamId = team.Id,
                 Role = UserRole.Admin,
+                EmailVerified = true,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -56,10 +61,12 @@ public class DbSeeder
                 Id = Guid.NewGuid().ToString(),
                 Email = "pm@fieldmind.io",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"),
+                Pin = HashPin("87654321"),
                 FirstName = "Project",
                 LastName = "Manager",
                 TeamId = team.Id,
                 Role = UserRole.PM,
+                EmailVerified = true,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -68,10 +75,12 @@ public class DbSeeder
                 Id = Guid.NewGuid().ToString(),
                 Email = "tech@fieldmind.io",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"),
+                Pin = HashPin("11223344"),
                 FirstName = "Field",
                 LastName = "Technician",
                 TeamId = team.Id,
                 Role = UserRole.FieldTech,
+                EmailVerified = true,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -504,7 +513,10 @@ public class DbSeeder
             _logger.LogInformation("✅ Database seeded successfully!");
             _logger.LogInformation("Created:");
             _logger.LogInformation("  - 1 Team: Prop-Trax Demo");
-            _logger.LogInformation("  - 3 Users: admin@fieldmind.io, pm@fieldmind.io, tech@fieldmind.io (password: password123)");
+            _logger.LogInformation("  - 3 Users:");
+            _logger.LogInformation("      admin@fieldmind.io  PIN: 12345678  (Admin)");
+            _logger.LogInformation("      pm@fieldmind.io     PIN: 87654321  (PM)");
+            _logger.LogInformation("      tech@fieldmind.io   PIN: 11223344  (FieldTech)");
             _logger.LogInformation("  - 3 Buildings");
             _logger.LogInformation("  - 3 Projects");
             _logger.LogInformation("  - 3 Folders");
@@ -519,6 +531,12 @@ public class DbSeeder
             _logger.LogError(ex, "Error seeding database");
             throw;
         }
+    }
+
+    private static string HashPin(string pin)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(pin));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 
     private async Task SeedAlertRules()

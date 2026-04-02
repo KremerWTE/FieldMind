@@ -1,0 +1,42 @@
+version: '3.8'
+
+# Full-stack compose — includes the API container in addition to infra.
+# For local dev, use docker-compose.yml (infra only) + dotnet run separately.
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.full.yml up
+
+services:
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: fieldmind-api
+    ports:
+      - '3001:3001'
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: >
+        Host=postgres;Port=5432;Database=fieldmind;
+        Username=postgres;Password=${POSTGRES_PASSWORD:-postgres}
+      JWT__Secret: ${JWT_SECRET:?JWT_SECRET env var is required}
+      JWT__ExpirationMinutes: '60'
+      JWT__RefreshExpirationDays: '7'
+      Frontend__Url: ${FRONTEND_URL:-http://localhost:3000}
+      AWS__AccessKeyId: ${AWS_ACCESS_KEY_ID:-}
+      AWS__SecretAccessKey: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS__BucketName: ${AWS_BUCKET_NAME:-fieldmind-photos-dev}
+      AWS__Region: ${AWS_REGION:-us-east-1}
+      Twilio__AccountSid: ${TWILIO_ACCOUNT_SID:-}
+      Twilio__AuthToken: ${TWILIO_AUTH_TOKEN:-}
+      Twilio__FromNumber: ${TWILIO_FROM_NUMBER:-}
+      OpenAI__ApiKey: ${OPENAI_API_KEY:-}
+      Serilog__SeqUrl: http://seq:5341
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s

@@ -95,7 +95,7 @@ export default function JobSiteSelectScreen({ navigation }: any) {
 
       // Calculate distances if location available
       if (currentLocation) {
-        const buildingsWithDistance = mockBuildings.map(building => ({
+        const buildingsWithDistance = buildingsData.map(building => ({
           ...building,
           distance: building.geoLat && building.geoLng
             ? calculateDistance(

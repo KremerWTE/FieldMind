@@ -53,6 +53,7 @@ export default function ProfilePage() {
     newPassword: '',
     confirmPassword: '',
   });
+  const [pinForm, setPinForm] = useState({ newPin: '', confirmPin: '' });
   const [message, setMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
@@ -375,7 +376,85 @@ export default function ProfilePage() {
 
       {/* Security Tab */}
       {activeTab === 'security' && (
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="space-y-6">
+          {/* PIN Section */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold mb-2">Login PIN</h2>
+            <p className="text-sm text-gray-500 mb-6">Change your 8-digit PIN used to sign in</p>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setMessage({ type: '', text: '' });
+                if (!/^\d{8}$/.test(pinForm.newPin)) {
+                  setMessage({ type: 'error', text: 'PIN must be exactly 8 digits.' });
+                  return;
+                }
+                if (pinForm.newPin !== pinForm.confirmPin) {
+                  setMessage({ type: 'error', text: 'PINs do not match.' });
+                  return;
+                }
+                try {
+                  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profile/change-pin`, {
+                    method: 'POST',
+                    headers: {
+                      Authorization: `Bearer ${localStorage.getItem('accessToken')}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ pin: pinForm.newPin }),
+                  });
+                  if (res.ok) {
+                    setPinForm({ newPin: '', confirmPin: '' });
+                    setMessage({ type: 'success', text: 'PIN updated successfully.' });
+                  } else {
+                    const data = await res.json().catch(() => ({}));
+                    setMessage({ type: 'error', text: data.message || 'Failed to update PIN.' });
+                  }
+                } catch {
+                  setMessage({ type: 'error', text: 'Network error. Please try again.' });
+                }
+              }}
+              className="space-y-4 max-w-md"
+            >
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  New PIN <span className="text-xs text-gray-400">(8 digits)</span>
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={8}
+                  value={pinForm.newPin}
+                  onChange={(e) => setPinForm({ ...pinForm, newPin: e.target.value.replace(/\D/g, '').slice(0, 8) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-lg tracking-widest"
+                  placeholder="••••••••"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Confirm New PIN
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={8}
+                  value={pinForm.confirmPin}
+                  onChange={(e) => setPinForm({ ...pinForm, confirmPin: e.target.value.replace(/\D/g, '').slice(0, 8) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-lg tracking-widest"
+                  placeholder="••••••••"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={pinForm.newPin.length !== 8}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Update PIN
+              </button>
+            </form>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h2 className="text-lg font-semibold mb-6">Change Password</h2>
 
           <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
@@ -450,6 +529,7 @@ export default function ProfilePage() {
                 </p>
               )}
             </div>
+          </div>
           </div>
         </div>
       )}

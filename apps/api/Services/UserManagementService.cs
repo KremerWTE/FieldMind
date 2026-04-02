@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text.Json;
 using FieldMind.Api.Data;
 using FieldMind.Api.Models;
@@ -11,17 +12,20 @@ public class UserManagementService
 {
     private readonly FieldMindDbContext _context;
     private readonly EmailService _emailService;
+    private readonly SmsService _smsService;
     private readonly ILogger<UserManagementService> _logger;
     private readonly IConfiguration _configuration;
 
     public UserManagementService(
         FieldMindDbContext context,
         EmailService emailService,
+        SmsService smsService,
         ILogger<UserManagementService> logger,
         IConfiguration configuration)
     {
         _context = context;
         _emailService = emailService;
+        _smsService = smsService;
         _logger = logger;
         _configuration = configuration;
     }
@@ -308,29 +312,28 @@ public class UserManagementService
         return true;
     }
 
-    // Invite user
-    public async Task<DetailedUserDto?> InviteUser(InviteUserRequest request, string teamId, string invitedById)
+    // Invite user — generates an 8-digit PIN and SMS it if the user has a phone number
+    public async Task<(DetailedUserDto? User, string Pin)> InviteUser(InviteUserRequest request, string teamId, string invitedById)
     {
         // Check if email already exists
         if (await _context.Users.AnyAsync(u => u.Email == request.Email))
-            return null;
+            return (null, string.Empty);
 
-        // Generate temp password and verification token
-        var tempPassword = GenerateTemporaryPassword();
-        var verificationToken = Guid.NewGuid().ToString();
+        var rawPin = GeneratePin();
+        var pinHash = AuthService.HashPin(rawPin);
 
         var user = new User
         {
             Email = request.Email,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword),
+            PasswordHash = string.Empty,
             FirstName = request.FirstName,
             LastName = request.LastName,
             Role = Enum.Parse<UserRole>(request.Role),
             JobTitle = request.JobTitle,
+            PhoneNumber = request.PhoneNumber,
             TeamId = teamId,
-            EmailVerificationToken = verificationToken,
-            EmailVerificationSentAt = DateTime.UtcNow,
-            EmailVerified = false
+            Pin = pinHash,
+            EmailVerified = true
         };
 
         _context.Users.Add(user);
@@ -338,30 +341,66 @@ public class UserManagementService
 
         await LogActivity(user.Id, ActivityType.UserCreated, $"User invited by {invitedById}");
 
-        // Send invitation email
-        var verifyUrl = $"{_configuration["Frontend:Url"]}/verify-email?token={verificationToken}";
+        // SMS the PIN if a phone number is provided
+        if (!string.IsNullOrEmpty(request.PhoneNumber))
+        {
+            try
+            {
+                await _smsService.SendSmsAsync(
+                    request.PhoneNumber,
+                    $"Welcome to FieldMind, {user.FirstName}! Your login PIN is: {rawPin}"
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send invitation SMS");
+            }
+        }
+
+        return (await GetUserById(user.Id), rawPin);
+    }
+
+    // Send a fresh PIN to a user who forgot theirs (looked up by phone number)
+    public async Task<bool> SendNewPin(string phoneNumber)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.PhoneNumber == phoneNumber && u.IsActive);
+        if (user == null)
+            return false;
+
+        var rawPin = GeneratePin();
+        user.Pin = AuthService.HashPin(rawPin);
+        user.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        await LogActivity(user.Id, ActivityType.PasswordReset, "PIN reset via SMS");
 
         try
         {
-            await _emailService.SendEmailAsync(
-                user.Email,
-                user.FullName,
-                "Welcome to FieldMind",
-                $"<h2>Welcome to FieldMind!</h2>" +
-                $"<p>Hello {user.FirstName},</p>" +
-                $"<p>You've been invited to join FieldMind. Here are your login credentials:</p>" +
-                $"<p><strong>Email:</strong> {user.Email}<br/>" +
-                $"<strong>Temporary Password:</strong> {tempPassword}</p>" +
-                $"<p>Please click the link below to verify your email and set a new password:</p>" +
-                $"<p><a href='{verifyUrl}' style='background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>Verify Email & Set Password</a></p>"
+            await _smsService.SendSmsAsync(
+                phoneNumber,
+                $"Hi {user.FirstName}, your new FieldMind PIN is: {rawPin}"
             );
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send invitation email");
+            _logger.LogError(ex, "Failed to send new PIN SMS");
         }
 
-        return await GetUserById(user.Id);
+        return true;
+    }
+
+    public async Task<bool> ChangePin(string userId, string newPin)
+    {
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null || !user.IsActive)
+            return false;
+
+        user.Pin = AuthService.HashPin(newPin);
+        user.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        await LogActivity(user.Id, ActivityType.ProfileUpdated, "PIN changed by user");
+        return true;
     }
 
     // Verify email
@@ -514,12 +553,12 @@ public class UserManagementService
         await _context.SaveChangesAsync();
     }
 
-    // Helper: Generate temporary password
-    private string GenerateTemporaryPassword()
+    // Helper: Generate 8-digit numeric PIN using a cryptographic RNG
+    private static string GeneratePin()
     {
-        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-        var random = new Random();
-        return new string(Enumerable.Repeat(chars, 12)
-            .Select(s => s[random.Next(s.Length)]).ToArray());
+        Span<byte> bytes = stackalloc byte[4];
+        RandomNumberGenerator.Fill(bytes);
+        var value = (BitConverter.ToUInt32(bytes) % 100_000_000);
+        return value.ToString("D8");
     }
 }

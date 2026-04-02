@@ -75,6 +75,17 @@ public class BuildingsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("maintenance-events")]
+    public async Task<IActionResult> GetAllMaintenanceEvents(
+        [FromQuery] string? severity,
+        [FromQuery] string? status,
+        [FromQuery] int limit = 100)
+    {
+        var teamId = GetTeamId();
+        var events = await _buildingsService.GetAllMaintenanceEvents(teamId, severity, status, limit);
+        return Ok(new { events });
+    }
+
     [HttpGet("{id}/maintenance-events")]
     public async Task<IActionResult> GetBuildingMaintenanceEvents(string id)
     {

@@ -61,11 +61,11 @@ public class UsersController : ControllerBase
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value!;
         var teamId = User.FindFirst("teamId")?.Value!;
 
-        var user = await _userService.InviteUser(request, teamId, userId);
+        var (user, rawPin) = await _userService.InviteUser(request, teamId, userId);
         if (user == null)
             return BadRequest(new { message = "Email already in use" });
 
-        return Ok(user);
+        return Ok(new { user, pin = rawPin });
     }
 
     [HttpPut("{id}")]

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using FieldMind.Api.Services;
 using FieldMind.Api.DTOs;
 using FieldMind.Api.DTOs.UserManagement;
+using System.ComponentModel.DataAnnotations;
 
 namespace FieldMind.Api.Controllers;
 
@@ -90,4 +91,28 @@ public class AuthController : ControllerBase
 
         return Ok(new { message = "Email verified successfully" });
     }
+
+    [HttpPost("login-pin")]
+    public async Task<IActionResult> LoginWithPin([FromBody] LoginPinRequest request)
+    {
+        if (string.IsNullOrEmpty(request.Pin) || request.Pin.Length != 8 || !request.Pin.All(char.IsDigit))
+            return BadRequest(new { message = "PIN must be exactly 8 digits." });
+
+        var result = await _authService.LoginWithPin(request.Pin);
+        if (result == null)
+            return Unauthorized(new { message = "Invalid PIN." });
+
+        return Ok(result);
+    }
+
+    [HttpPost("forgot-pin")]
+    public async Task<IActionResult> ForgotPin([FromBody] ForgotPinRequest request)
+    {
+        await _userService.SendNewPin(request.PhoneNumber);
+        // Always return success to prevent enumeration
+        return Ok(new { message = "If a matching account exists, a new PIN has been sent to that number." });
+    }
 }
+
+public record LoginPinRequest([Required] string Pin);
+public record ForgotPinRequest([Required] string PhoneNumber);

@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
-import { apiService } from './api.service';
+import * as SecureStore from 'expo-secure-store';
 import Config from '../config';
 
 interface ErrorReport {
@@ -217,25 +217,30 @@ class MobileMonitoringService {
     this.performanceQueue = [];
     await this.saveQueueToStorage();
 
+    const token = await SecureStore.getItemAsync('accessToken').catch(() => null);
+    const baseHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Monitoring-Key': Config.MONITORING_KEY || '',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+
     try {
       // Send errors
       if (errorsToSend.length > 0) {
-        await apiService.post('/monitoring/errors/batch', {
-          headers: {
-            'X-Monitoring-Key': Config.MONITORING_KEY || 'change-this-in-production'
-          },
-          body: { errors: errorsToSend }
+        await fetch(`${Config.API_URL}/monitoring/errors/batch`, {
+          method: 'POST',
+          headers: baseHeaders,
+          body: JSON.stringify({ errors: errorsToSend }),
         });
         console.log(`[Monitoring] Sent ${errorsToSend.length} errors`);
       }
 
       // Send performance metrics
       if (metricsToSend.length > 0) {
-        await apiService.post('/monitoring/performance', {
-          headers: {
-            'X-Monitoring-Key': Config.MONITORING_KEY || 'change-this-in-production'
-          },
-          body: { metrics: metricsToSend }
+        await fetch(`${Config.API_URL}/monitoring/performance`, {
+          method: 'POST',
+          headers: baseHeaders,
+          body: JSON.stringify({ metrics: metricsToSend }),
         });
         console.log(`[Monitoring] Sent ${metricsToSend.length} performance metrics`);
       }

@@ -32,6 +32,9 @@ public class User
     public string? EmailVerificationToken { get; set; }
     public DateTime? EmailVerificationSentAt { get; set; }
 
+    // PIN login (SHA-256 hash of the 8-digit numeric code)
+    public string? Pin { get; set; }
+
     // Password reset
     public string? PasswordResetToken { get; set; }
     public DateTime? PasswordResetExpiry { get; set; }

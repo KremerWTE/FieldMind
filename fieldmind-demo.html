@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FieldMind — Property Intelligence</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  [x-cloak] { display: none; }
+  .nav-active { background:#eff6ff; color:#1d4ed8; font-weight:600; }
+  .nav-item { display:flex; align-items:center; gap:10px; padding:7px 12px; border-radius:6px; font-size:14px; color:#4b5563; cursor:pointer; transition:background .15s; }
+  .nav-item:hover { background:#f3f4f6; color:#111827; }
+  .pin-dot { width:16px; height:16px; border-radius:50%; border:2px solid #d1d5db; transition:all .15s; }
+  .pin-dot.filled { background:#2563eb; border-color:#2563eb; }
+  .tab-btn { padding:6px 16px; border-radius:6px; font-size:14px; font-weight:500; cursor:pointer; color:#6b7280; transition:all .15s; }
+  .tab-btn.active { background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.1); color:#111827; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:9999px; font-size:11px; font-weight:600; }
+  .score-high { color:#15803d; background:#dcfce7; }
+  .score-mid  { color:#92400e; background:#fef9c3; }
+  .score-low  { color:#b91c1c; background:#fee2e2; }
+  .status-active   { color:#15803d; background:#dcfce7; }
+  .status-planning { color:#1d4ed8; background:#dbeafe; }
+  .status-complete { color:#6b7280; background:#f3f4f6; }
+  .status-draft    { color:#92400e; background:#fef9c3; }
+  .status-submitted{ color:#15803d; background:#dcfce7; }
+  .status-approved { color:#1d4ed8; background:#dbeafe; }
+  .clock-ring { width:160px; height:160px; border-radius:50%; border:6px solid #e5e7eb; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; }
+  .clock-ring.clocked-in { border-color:#16a34a; background:#f0fdf4; }
+</style>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans">
+
+<!-- ═══════════════════════════════════════════════════════════════
+     LOGIN SCREEN
+════════════════════════════════════════════════════════════════ -->
+<div id="loginScreen" class="min-h-screen flex items-center justify-center bg-gray-50">
+  <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-8 w-full max-w-sm">
+    <div class="mb-8 text-center">
+      <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-600 text-white text-xl font-bold mb-3">F</div>
+      <h1 class="text-2xl font-bold text-gray-900">FieldMind</h1>
+      <p class="text-sm text-gray-500 mt-1">Property Intelligence Platform</p>
+    </div>
+    <p class="text-sm font-medium text-gray-700 text-center mb-4">Enter your 8-digit PIN</p>
+    <div id="pinDots" class="flex justify-center gap-3 mb-6">
+      <div class="pin-dot" id="d0"></div><div class="pin-dot" id="d1"></div>
+      <div class="pin-dot" id="d2"></div><div class="pin-dot" id="d3"></div>
+      <div class="pin-dot" id="d4"></div><div class="pin-dot" id="d5"></div>
+      <div class="pin-dot" id="d6"></div><div class="pin-dot" id="d7"></div>
+    </div>
+    <div id="pinError" class="hidden mb-3 p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-md text-center"></div>
+    <input id="pinInput" type="tel" inputmode="numeric" maxlength="8" autocomplete="one-time-code"
+      class="sr-only" />
+    <button onclick="document.getElementById('pinInput').focus()"
+      class="w-full py-3 border-2 border-dashed border-gray-200 rounded-lg text-sm text-gray-400 hover:border-blue-300 hover:text-blue-400 transition-colors mb-4">
+      Tap here, then type your PIN
+    </button>
+    <div class="text-center">
+      <a href="#" onclick="showForgotPin()" class="text-sm text-blue-600 hover:underline">Forgot PIN? Send a new one via SMS</a>
+    </div>
+  </div>
+</div>
+
+<!-- Camera modal -->
+<div id="cameraModal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+      <h2 class="text-base font-semibold text-gray-900" id="cam-title">Take Photo</h2>
+      <button onclick="closeCamera()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+
+    <!-- Preview step -->
+    <div id="cam-step-preview">
+      <div id="cam-video-wrap" class="relative bg-black">
+        <video id="cam-video" autoplay playsinline muted class="w-full max-h-72 object-contain"></video>
+        <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-4 flex items-center justify-center">
+          <button onclick="capturePhoto()" class="w-16 h-16 rounded-full bg-white border-4 border-gray-200 hover:bg-gray-50 flex items-center justify-center text-2xl shadow-lg">📷</button>
+        </div>
+      </div>
+      <div id="cam-error-wrap" class="hidden p-5">
+        <div class="p-3 bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm rounded-md mb-4" id="cam-error-msg"></div>
+        <label class="block w-full py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 text-center cursor-pointer">
+          Choose Photo from Device
+          <input type="file" accept="image/*" capture="environment" class="hidden" onchange="handleFileInput(event)" />
+        </label>
+      </div>
+    </div>
+
+    <!-- Captured / metadata step -->
+    <div id="cam-step-captured" class="hidden">
+      <img id="cam-preview-img" src="" alt="Captured" class="w-full max-h-64 object-contain bg-black" />
+      <div class="p-5 space-y-3">
+        <div id="cam-upload-error" class="hidden p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-md"></div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Building <span class="text-red-500">*</span></label>
+          <select id="cam-building" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+            <option value="">Select a building…</option>
+            <option>Westside Tower</option><option>Elm Corporate</option>
+            <option>Harbor Plaza</option><option>River Office</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Project (optional)</label>
+          <select class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+            <option value="">No project</option>
+            <option>Roof Inspection Q1</option><option>HVAC Maintenance</option>
+            <option>Parking Lot Survey</option>
+          </select>
+        </div>
+        <div class="flex gap-2 pt-1">
+          <button onclick="retakePhoto()" class="flex-1 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50">Retake</button>
+          <button onclick="uploadPhoto()" class="flex-1 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">Upload Photo</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Uploading step -->
+    <div id="cam-step-uploading" class="hidden flex flex-col items-center justify-center py-12 px-5">
+      <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+      <p class="text-sm text-gray-600">Uploading photo…</p>
+    </div>
+
+    <!-- Done step -->
+    <div id="cam-step-done" class="hidden flex flex-col items-center justify-center py-12 px-5 text-center">
+      <div class="text-4xl mb-3">✅</div>
+      <p class="text-base font-semibold text-gray-900 mb-1">Photo uploaded!</p>
+      <p class="text-sm text-gray-500 mb-6">It's been queued for AI analysis.</p>
+      <div class="flex gap-2 w-full">
+        <button onclick="retakePhoto()" class="flex-1 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50">Take Another</button>
+        <button onclick="closeCamera()" class="flex-1 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">Done</button>
+      </div>
+    </div>
+
+    <canvas id="cam-canvas" class="hidden"></canvas>
+  </div>
+</div>
+
+<!-- Forgot PIN modal -->
+<div id="forgotPinModal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+  <div class="bg-white rounded-xl border border-gray-200 shadow-lg p-8 w-full max-w-sm mx-4">
+    <h2 class="text-lg font-bold mb-1">Reset your PIN</h2>
+    <p class="text-sm text-gray-500 mb-4">Enter the phone number on your account and we'll SMS you a new PIN.</p>
+    <input type="tel" placeholder="+1 555 000 0000"
+      class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+    <button onclick="hideForgotPin()" class="w-full py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 mb-2">
+      Send new PIN via SMS
+    </button>
+    <button onclick="hideForgotPin()" class="w-full py-2 border border-gray-300 text-gray-600 rounded-md text-sm hover:bg-gray-50">
+      Cancel
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MAIN APP
+════════════════════════════════════════════════════════════════ -->
+<div id="app" class="hidden flex h-screen overflow-hidden">
+
+  <!-- Sidebar -->
+  <aside class="w-60 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
+    <div class="px-5 py-4 border-b border-gray-200">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">F</div>
+        <div>
+          <h1 class="text-base font-bold text-gray-900 leading-none">FieldMind</h1>
+          <p class="text-xs text-gray-500 mt-0.5">Property Intelligence</p>
+        </div>
+      </div>
+    </div>
+    <nav class="flex-1 px-3 py-3 overflow-y-auto space-y-0.5">
+      <div onclick="navigate('dashboard')"  class="nav-item" id="nav-dashboard">  <span class="w-5 text-center">▤</span> Dashboard</div>
+      <div onclick="navigate('buildings')"  class="nav-item" id="nav-buildings">  <span class="w-5 text-center">🏢</span> Buildings</div>
+      <div onclick="navigate('projects')"   class="nav-item" id="nav-projects">   <span class="w-5 text-center">📋</span> Projects</div>
+      <div onclick="navigate('photos')"     class="nav-item" id="nav-photos">     <span class="w-5 text-center">📷</span> Photos</div>
+      <div onclick="navigate('reports')"    class="nav-item" id="nav-reports">    <span class="w-5 text-center">📄</span> Reports</div>
+      <div onclick="navigate('users')"      class="nav-item" id="nav-users">      <span class="w-5 text-center">👥</span> Team</div>
+      <p class="px-3 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Time</p>
+      <div onclick="navigate('timeclock')"  class="nav-item" id="nav-timeclock">  <span class="w-5 text-center">⏱</span> My Time Clock</div>
+      <div onclick="navigate('timereports')" class="nav-item" id="nav-timereports"><span class="w-5 text-center">🗓</span> Time History</div>
+      <p class="px-3 pt-4 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Admin</p>
+      <div onclick="navigate('payroll')"    class="nav-item" id="nav-payroll">    <span class="w-5 text-center">💰</span> Payroll Review</div>
+      <div onclick="navigate('payrollhist')" class="nav-item" id="nav-payrollhist"><span class="w-5 text-center">📊</span> Payroll History</div>
+    </nav>
+    <div class="px-4 py-3 border-t border-gray-200">
+      <div class="mb-2">
+        <p class="text-sm font-medium text-gray-900">Alex Johnson</p>
+        <p class="text-xs text-gray-500">Admin</p>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="navigate('profile')" class="flex-1 text-center text-xs text-gray-500 hover:text-gray-900 py-1">Profile</button>
+        <button onclick="logout()" class="flex-1 text-center text-xs text-red-500 hover:text-red-700 py-1">Log out</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="flex-1 overflow-y-auto bg-gray-50">
+
+    <!-- ── DASHBOARD ── -->
+    <div id="page-dashboard" class="p-8">
+      <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <p class="text-sm text-gray-500 mt-0.5">Welcome back, Alex. Here's your overview.</p>
+      </div>
+      <div class="grid grid-cols-4 gap-4 mb-8">
+        <div class="bg-white border border-gray-200 rounded-lg p-5">
+          <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Buildings</p>
+          <p class="text-3xl font-bold text-gray-900 mt-1">24</p>
+          <p class="text-xs text-green-600 mt-1">↑ 2 this month</p>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-5">
+          <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Active Projects</p>
+          <p class="text-3xl font-bold text-gray-900 mt-1">11</p>
+          <p class="text-xs text-blue-600 mt-1">3 due this week</p>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-5">
+          <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Photos This Month</p>
+          <p class="text-3xl font-bold text-gray-900 mt-1">847</p>
+          <p class="text-xs text-gray-500 mt-1">AI analyzed: 831</p>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-5">
+          <p class="text-xs text-gray-500 font-medium uppercase tracking-wide">Team Members</p>
+          <p class="text-3xl font-bold text-gray-900 mt-1">18</p>
+          <p class="text-xs text-green-600 mt-1">16 active today</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-3 gap-6">
+        <div class="col-span-2 bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-gray-900">Recent Projects</h2>
+            <button onclick="navigate('projects')" class="text-xs text-blue-600 hover:underline">View all</button>
+          </div>
+          <table class="min-w-full">
+            <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
+              <tr>
+                <th class="px-5 py-3 text-left">Project</th>
+                <th class="px-5 py-3 text-left">Building</th>
+                <th class="px-5 py-3 text-left">Status</th>
+                <th class="px-5 py-3 text-left">Photos</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 text-sm">
+              <tr class="hover:bg-gray-50"><td class="px-5 py-3 font-medium">Roof Inspection Q1</td><td class="px-5 py-3 text-gray-500">Westside Tower</td><td class="px-5 py-3"><span class="badge status-active">Active</span></td><td class="px-5 py-3 text-gray-500">142</td></tr>
+              <tr class="hover:bg-gray-50"><td class="px-5 py-3 font-medium">HVAC Maintenance</td><td class="px-5 py-3 text-gray-500">Elm Corporate</td><td class="px-5 py-3"><span class="badge status-active">Active</span></td><td class="px-5 py-3 text-gray-500">89</td></tr>
+              <tr class="hover:bg-gray-50"><td class="px-5 py-3 font-medium">Parking Lot Survey</td><td class="px-5 py-3 text-gray-500">Harbor Plaza</td><td class="px-5 py-3"><span class="badge status-planning">Planning</span></td><td class="px-5 py-3 text-gray-500">0</td></tr>
+              <tr class="hover:bg-gray-50"><td class="px-5 py-3 font-medium">Fire Safety Audit</td><td class="px-5 py-3 text-gray-500">River Office</td><td class="px-5 py-3"><span class="badge status-complete">Complete</span></td><td class="px-5 py-3 text-gray-500">203</td></tr>
+              <tr class="hover:bg-gray-50"><td class="px-5 py-3 font-medium">Window Replacement</td><td class="px-5 py-3 text-gray-500">Westside Tower</td><td class="px-5 py-3"><span class="badge status-planning">Planning</span></td><td class="px-5 py-3 text-gray-500">17</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-100">
+            <h2 class="text-sm font-semibold text-gray-900">Buildings at Risk</h2>
+          </div>
+          <div class="divide-y divide-gray-100">
+            <div class="px-5 py-3 flex items-center justify-between">
+              <div><p class="text-sm font-medium">Harbor Plaza</p><p class="text-xs text-gray-500">Structural issues</p></div>
+              <span class="badge score-low">42%</span>
+            </div>
+            <div class="px-5 py-3 flex items-center justify-between">
+              <div><p class="text-sm font-medium">River Office</p><p class="text-xs text-gray-500">HVAC degraded</p></div>
+              <span class="badge score-mid">61%</span>
+            </div>
+            <div class="px-5 py-3 flex items-center justify-between">
+              <div><p class="text-sm font-medium">Lakeside Center</p><p class="text-xs text-gray-500">Roof wear</p></div>
+              <span class="badge score-mid">67%</span>
+            </div>
+            <div class="px-5 py-3 flex items-center justify-between">
+              <div><p class="text-sm font-medium">Northgate Mall</p><p class="text-xs text-gray-500">Plumbing</p></div>
+              <span class="badge score-mid">71%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── BUILDINGS ── -->
+    <div id="page-buildings" class="hidden p-8">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Buildings</h1>
+          <p class="text-sm text-gray-500 mt-0.5">24 properties managed</p>
+        </div>
+        <button class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">+ Add Building</button>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-lg mb-4 p-3 flex gap-3">
+        <input type="text" placeholder="Search buildings…" class="flex-1 px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <select class="px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-600">
+          <option>All Health Scores</option><option>High (≥80%)</option><option>Medium</option><option>Low (&lt;60%)</option>
+        </select>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Building</th>
+              <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+              <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">City</th>
+              <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sq Ft</th>
+              <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Health</th>
+              <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Projects</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100 text-sm" id="buildingRows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── BUILDING DETAIL ── -->
+    <div id="page-building-detail" class="hidden p-8">
+      <div class="mb-1">
+        <button onclick="navigate('buildings')" class="text-sm text-blue-600 hover:underline">← Buildings</button>
+      </div>
+      <div class="flex items-start justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900" id="bdetail-name">Westside Tower</h1>
+          <p class="text-sm text-gray-500 mt-0.5" id="bdetail-sub">Commercial · 1450 Market St, San Francisco, CA</p>
+        </div>
+        <span class="badge score-high text-sm px-3 py-1" id="bdetail-score">88%</span>
+      </div>
+      <div class="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit mb-6" id="bdetail-tabs">
+        <button class="tab-btn active" onclick="switchBTab('overview',this)">Overview</button>
+        <button class="tab-btn" onclick="switchBTab('bphotos',this)">Photos</button>
+        <button class="tab-btn" onclick="switchBTab('maintenance',this)">Maintenance</button>
+        <button class="tab-btn" onclick="switchBTab('health',this)">Health Stats</button>
+      </div>
+      <!-- Overview tab -->
+      <div id="btab-overview">
+        <div class="grid grid-cols-3 gap-4 mb-6">
+          <div class="bg-white border border-gray-200 rounded-lg p-4"><p class="text-xs text-gray-500 mb-1">Year Built</p><p class="font-semibold">1987</p></div>
+          <div class="bg-white border border-gray-200 rounded-lg p-4"><p class="text-xs text-gray-500 mb-1">Sq Footage</p><p class="font-semibold">124,500 sq ft</p></div>
+          <div class="bg-white border border-gray-200 rounded-lg p-4"><p class="text-xs text-gray-500 mb-1">Floors</p><p class="font-semibold">12</p></div>
+          <div class="bg-white border border-gray-200 rounded-lg p-4"><p class="text-xs text-gray-500 mb-1">Active Projects</p><p class="font-semibold text-blue-600">3</p></div>
+          <div class="bg-white border border-gray-200 rounded-lg p-4"><p class="text-xs text-gray-500 mb-1">Total Photos</p><p class="font-semibold">847</p></div>
+          <div class="bg-white border border-gray-200 rounded-lg p-4"><p class="text-xs text-gray-500 mb-1">Last Inspection</p><p class="font-semibold">Mar 15, 2026</p></div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-5">
+          <h3 class="font-semibold mb-2">Description</h3>
+          <p class="text-sm text-gray-600">Class A office tower in the heart of the financial district. Recently underwent lobby renovation. Elevator modernization scheduled for Q3 2026.</p>
+        </div>
+      </div>
+      <!-- Photos tab -->
+      <div id="btab-bphotos" class="hidden">
+        <div class="grid grid-cols-4 gap-3">
+          <div class="bg-gray-200 rounded-lg aspect-square flex items-center justify-center text-gray-400 text-3xl">📷</div>
+          <div class="bg-gray-200 rounded-lg aspect-square flex items-center justify-center text-gray-400 text-3xl">📷</div>
+          <div class="bg-gray-200 rounded-lg aspect-square flex items-center justify-center text-gray-400 text-3xl">📷</div>
+          <div class="bg-gray-200 rounded-lg aspect-square flex items-center justify-center text-gray-400 text-3xl">📷</div>
+          <div class="bg-gray-200 rounded-lg aspect-square flex items-center justify-center text-gray-400 text-3xl">📷</div>
+          <div class="bg-gray-200 rounded-lg aspect-square flex items-center justify-center text-gray-400 text-3xl">📷</div>
+          <div class="bg-gray-200 rounded-lg aspect-square flex items-center justify-center text-gray-400 text-3xl">📷</div>
+          <div class="bg-gray-200 rounded-lg aspect-square flex items-center justify-center text-gray-400 text-3xl">📷</div>
+        </div>
+      </div>
+      <!-- Maintenance tab -->
+      <div id="btab-maintenance" class="hidden">
+        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <table class="min-w-full divide-y divide-gray-200 text-sm">
+            <thead class="bg-gray-50 text-xs text-gray-500 uppercase"><tr>
+              <th class="px-5 py-3 text-left">Event</th><th class="px-5 py-3 text-left">Severity</th><th class="px-5 py-3 text-left">Date</th><th class="px-5 py-3 text-left">Status</th>
+            </tr></thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr><td class="px-5 py-3 font-medium">Roof membrane crack</td><td class="px-5 py-3"><span class="badge score-low">High</span></td><td class="px-5 py-3 text-gray-500">Mar 2, 2026</td><td class="px-5 py-3"><span class="badge status-active">Open</span></td></tr>
+              <tr><td class="px-5 py-3 font-medium">HVAC filter replacement</td><td class="px-5 py-3"><span class="badge score-mid">Medium</span></td><td class="px-5 py-3 text-gray-500">Feb 14, 2026</td><td class="px-5 py-3"><span class="badge status-complete">Resolved</span></td></tr>
+              <tr><td class="px-5 py-3 font-medium">Parking lot paving</td><td class="px-5 py-3"><span class="badge score-mid">Medium</span></td><td class="px-5 py-3 text-gray-500">Jan 22, 2026</td><td class="px-5 py-3"><span class="badge status-planning">Scheduled</span></td></tr>
+              <tr><td class="px-5 py-3 font-medium">Window seal failure</td><td class="px-5 py-3"><span class="badge score-high">Low</span></td><td class="px-5 py-3 text-gray-500">Jan 8, 2026</td><td class="px-5 py-3"><span class="badge status-complete">Resolved</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Health tab -->
+      <div id="btab-health" class="hidden">
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bg-white border border-gray-200 rounded-lg p-5">
+            <h3 class="font-semibold mb-3">Health Metrics</h3>
+            <div class="space-y-3">
+              <div class="flex items-center justify-between"><span class="text-sm text-gray-600">Structural</span><div class="flex items-center gap-2"><div class="w-32 bg-gray-200 rounded-full h-2"><div class="bg-green-500 h-2 rounded-full" style="width:92%"></div></div><span class="text-sm font-semibold">92%</span></div></div>
+              <div class="flex items-center justify-between"><span class="text-sm text-gray-600">Roof</span><div class="flex items-center gap-2"><div class="w-32 bg-gray-200 rounded-full h-2"><div class="bg-yellow-500 h-2 rounded-full" style="width:74%"></div></div><span class="text-sm font-semibold">74%</span></div></div>
+              <div class="flex items-center justify-between"><span class="text-sm text-gray-600">HVAC</span><div class="flex items-center gap-2"><div class="w-32 bg-gray-200 rounded-full h-2"><div class="bg-green-500 h-2 rounded-full" style="width:88%"></div></div><span class="text-sm font-semibold">88%</span></div></div>
+              <div class="flex items-center justify-between"><span class="text-sm text-gray-600">Electrical</span><div class="flex items-center gap-2"><div class="w-32 bg-gray-200 rounded-full h-2"><div class="bg-green-500 h-2 rounded-full" style="width:95%"></div></div><span class="text-sm font-semibold">95%</span></div></div>
+              <div class="flex items-center justify-between"><span class="text-sm text-gray-600">Plumbing</span><div class="flex items-center gap-2"><div class="w-32 bg-gray-200 rounded-full h-2"><div class="bg-green-500 h-2 rounded-full" style="width:89%"></div></div><span class="text-sm font-semibold">89%</span></div></div>
+              <div class="flex items-center justify-between"><span class="text-sm text-gray-600">Exterior</span><div class="flex items-center gap-2"><div class="w-32 bg-gray-200 rounded-full h-2"><div class="bg-yellow-500 h-2 rounded-full" style="width:81%"></div></div><span class="text-sm font-semibold">81%</span></div></div>
+            </div>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-lg p-5">
+            <h3 class="font-semibold mb-3">Overall Score</h3>
+            <div class="text-center py-6">
+              <p class="text-6xl font-bold text-green-600">88%</p>
+              <p class="text-sm text-gray-500 mt-2">Good Condition</p>
+              <p class="text-xs text-gray-400 mt-1">Last updated Mar 28, 2026</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PROJECTS ── -->
+    <div id="page-projects" class="hidden p-8">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Projects</h1>
+          <p class="text-sm text-gray-500 mt-0.5">11 active · 3 planning · 8 complete</p>
+        </div>
+        <button class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">+ New Project</button>
+      </div>
+      <div class="flex gap-2 mb-4">
+        <button onclick="filterProjects('all',this)" class="px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium project-filter">All</button>
+        <button onclick="filterProjects('Active',this)" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-600 project-filter">Active</button>
+        <button onclick="filterProjects('Planning',this)" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-600 project-filter">Planning</button>
+        <button onclick="filterProjects('Complete',this)" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-600 project-filter">Complete</button>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50"><tr>
+            <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Project</th>
+            <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Building</th>
+            <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+            <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Photos</th>
+            <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Activity</th>
+          </tr></thead>
+          <tbody class="divide-y divide-gray-100 text-sm" id="projectRows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── PHOTOS ── -->
+    <div id="page-photos" class="hidden p-8">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Photos</h1>
+          <p class="text-sm text-gray-500 mt-0.5">847 total · 831 AI-analyzed</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="openCamera()" class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 flex items-center gap-1.5">📷 Take Photo</button>
+          <button class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">↑ Upload Photos</button>
+        </div>
+      </div>
+      <div class="flex gap-3 mb-6">
+        <input type="text" placeholder="Search photos…" class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <select class="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-600"><option>All Buildings</option><option>Westside Tower</option><option>Elm Corporate</option><option>Harbor Plaza</option></select>
+        <select class="px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-600"><option>All AI Status</option><option>Analyzed</option><option>Pending</option><option>Issues Found</option></select>
+      </div>
+      <div class="grid grid-cols-5 gap-3">
+        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition" onclick="navigate('photo-detail')">
+          <div class="bg-gradient-to-br from-gray-200 to-gray-300 aspect-square flex items-center justify-center text-4xl">🏗️</div>
+          <div class="p-2"><p class="text-xs font-medium truncate">roof_section_A.jpg</p><p class="text-xs text-gray-500">Westside Tower</p><span class="badge score-low text-xs">Issue Found</span></div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition" onclick="navigate('photo-detail')">
+          <div class="bg-gradient-to-br from-blue-100 to-blue-200 aspect-square flex items-center justify-center text-4xl">🔧</div>
+          <div class="p-2"><p class="text-xs font-medium truncate">hvac_unit_3.jpg</p><p class="text-xs text-gray-500">Elm Corporate</p><span class="badge score-high text-xs">Clean</span></div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition">
+          <div class="bg-gradient-to-br from-green-100 to-green-200 aspect-square flex items-center justify-center text-4xl">🏢</div>
+          <div class="p-2"><p class="text-xs font-medium truncate">facade_north.jpg</p><p class="text-xs text-gray-500">Harbor Plaza</p><span class="badge score-mid text-xs">Monitor</span></div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition">
+          <div class="bg-gradient-to-br from-yellow-100 to-yellow-200 aspect-square flex items-center justify-center text-4xl">⚡</div>
+          <div class="p-2"><p class="text-xs font-medium truncate">panel_room_B2.jpg</p><p class="text-xs text-gray-500">River Office</p><span class="badge score-high text-xs">Clean</span></div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition">
+          <div class="bg-gradient-to-br from-purple-100 to-purple-200 aspect-square flex items-center justify-center text-4xl">🚿</div>
+          <div class="p-2"><p class="text-xs font-medium truncate">plumbing_floor4.jpg</p><p class="text-xs text-gray-500">Westside Tower</p><span class="badge score-mid text-xs">Monitor</span></div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition">
+          <div class="bg-gradient-to-br from-gray-100 to-gray-200 aspect-square flex items-center justify-center text-4xl">🅿️</div>
+          <div class="p-2"><p class="text-xs font-medium truncate">parking_lot_2.jpg</p><p class="text-xs text-gray-500">Harbor Plaza</p><span class="badge score-low text-xs">Issue Found</span></div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition">
+          <div class="bg-gradient-to-br from-orange-100 to-orange-200 aspect-square flex items-center justify-center text-4xl">🪟</div>
+          <div class="p-2"><p class="text-xs font-medium truncate">windows_8th_floor.jpg</p><p class="text-xs text-gray-500">Westside Tower</p><span class="badge score-mid text-xs">Monitor</span></div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition">
+          <div class="bg-gradient-to-br from-teal-100 to-teal-200 aspect-square flex items-center justify-center text-4xl">🌿</div>
+          <div class="p-2"><p class="text-xs font-medium truncate">landscaping_east.jpg</p><p class="text-xs text-gray-500">Elm Corporate</p><span class="badge score-high text-xs">Clean</span></div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition">
+          <div class="bg-gradient-to-br from-red-100 to-red-200 aspect-square flex items-center justify-center text-4xl">🚒</div>
+          <div class="p-2"><p class="text-xs font-medium truncate">fire_suppression.jpg</p><p class="text-xs text-gray-500">River Office</p><span class="badge score-high text-xs">Clean</span></div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition">
+          <div class="bg-gradient-to-br from-indigo-100 to-indigo-200 aspect-square flex items-center justify-center text-4xl">🔒</div>
+          <div class="p-2"><p class="text-xs font-medium truncate">security_lobby.jpg</p><p class="text-xs text-gray-500">Westside Tower</p><span class="badge score-high text-xs">Clean</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PHOTO DETAIL ── -->
+    <div id="page-photo-detail" class="hidden p-8">
+      <div class="mb-1"><button onclick="navigate('photos')" class="text-sm text-blue-600 hover:underline">← Photos</button></div>
+      <h1 class="text-xl font-bold mb-4">roof_section_A.jpg</h1>
+      <div class="grid grid-cols-2 gap-6">
+        <div>
+          <div class="bg-gradient-to-br from-gray-200 to-gray-400 rounded-lg aspect-video flex items-center justify-center text-6xl mb-4">🏗️</div>
+          <div class="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit mb-4">
+            <button class="tab-btn active" onclick="switchPTab('ai',this)">AI Analysis</button>
+            <button class="tab-btn" onclick="switchPTab('pmeta',this)">Metadata</button>
+            <button class="tab-btn" onclick="switchPTab('comments',this)">Comments</button>
+            <button class="tab-btn" onclick="switchPTab('tasks',this)">Tasks</button>
+          </div>
+          <div id="ptab-ai">
+            <div class="bg-white border border-gray-200 rounded-lg p-4 mb-3">
+              <p class="text-xs font-semibold text-gray-500 uppercase mb-1">AI Summary</p>
+              <p class="text-sm text-gray-700">Significant membrane cracking detected in northeast quadrant. Immediate waterproofing attention recommended before next rainfall season.</p>
+            </div>
+            <div class="space-y-2">
+              <div class="bg-white border border-red-200 rounded-lg p-3">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-medium">Membrane Crack — Zone A3</span>
+                  <span class="badge score-low">Severity 8/10</span>
+                </div>
+                <p class="text-xs text-gray-600">Linear crack approximately 4m long running east-west. High risk of water infiltration.</p>
+                <p class="text-xs text-blue-600 mt-1 font-medium">Recommendation: Immediate repair required</p>
+              </div>
+              <div class="bg-white border border-yellow-200 rounded-lg p-3">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-medium">Ponding Water — Zone B1</span>
+                  <span class="badge score-mid">Severity 5/10</span>
+                </div>
+                <p class="text-xs text-gray-600">Standing water pooling near drain — possible blockage or slope issue.</p>
+                <p class="text-xs text-blue-600 mt-1 font-medium">Recommendation: Inspect and clear drain</p>
+              </div>
+              <div class="bg-white border border-green-200 rounded-lg p-3">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-sm font-medium">Flashing Condition</span>
+                  <span class="badge score-high">Severity 2/10</span>
+                </div>
+                <p class="text-xs text-gray-600">Edge flashing in good condition. Minor surface oxidation only.</p>
+                <p class="text-xs text-blue-600 mt-1 font-medium">Recommendation: Monitor annually</p>
+              </div>
+            </div>
+          </div>
+          <div id="ptab-pmeta" class="hidden">
+            <div class="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100 text-sm">
+              <div class="px-4 py-2.5 flex justify-between"><span class="text-gray-500">File name</span><span class="font-medium">roof_section_A.jpg</span></div>
+              <div class="px-4 py-2.5 flex justify-between"><span class="text-gray-500">File size</span><span class="font-medium">4.2 MB</span></div>
+              <div class="px-4 py-2.5 flex justify-between"><span class="text-gray-500">Dimensions</span><span class="font-medium">4032 × 3024</span></div>
+              <div class="px-4 py-2.5 flex justify-between"><span class="text-gray-500">Building</span><span class="font-medium">Westside Tower</span></div>
+              <div class="px-4 py-2.5 flex justify-between"><span class="text-gray-500">Project</span><span class="font-medium">Roof Inspection Q1</span></div>
+              <div class="px-4 py-2.5 flex justify-between"><span class="text-gray-500">Captured</span><span class="font-medium">Mar 15, 2026 9:42 AM</span></div>
+              <div class="px-4 py-2.5 flex justify-between"><span class="text-gray-500">Uploaded by</span><span class="font-medium">Marcus Webb</span></div>
+              <div class="px-4 py-2.5 flex justify-between"><span class="text-gray-500">GPS</span><span class="font-medium">37.7831° N, 122.4149° W</span></div>
+              <div class="px-4 py-2.5 flex justify-between"><span class="text-gray-500">Camera</span><span class="font-medium">Apple iPhone 15 Pro</span></div>
+              <div class="px-4 py-2.5 flex justify-between"><span class="text-gray-500">AI Status</span><span class="badge score-low">Issues Found</span></div>
+            </div>
+          </div>
+          <div id="ptab-comments" class="hidden">
+            <div class="space-y-3 mb-4">
+              <div class="bg-white border border-gray-200 rounded-lg p-3">
+                <div class="flex items-center justify-between mb-1"><span class="text-sm font-medium">Sarah K.</span><span class="text-xs text-gray-400">Mar 16, 2:30 PM</span></div>
+                <p class="text-sm text-gray-700">Confirmed crack on-site. Requesting emergency repair quote from Roberts Roofing.</p>
+              </div>
+              <div class="bg-white border border-gray-200 rounded-lg p-3">
+                <div class="flex items-center justify-between mb-1"><span class="text-sm font-medium">Alex Johnson</span><span class="text-xs text-gray-400">Mar 17, 9:15 AM</span></div>
+                <p class="text-sm text-gray-700">Quote received — $4,200. Approved. Schedule for next Monday.</p>
+              </div>
+            </div>
+            <textarea rows="2" placeholder="Add a comment…" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            <button class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">Post Comment</button>
+          </div>
+          <div id="ptab-tasks" class="hidden">
+            <div class="space-y-2">
+              <div class="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3">
+                <span class="badge status-active">Open</span>
+                <div class="flex-1"><p class="text-sm font-medium">Repair roof membrane crack</p><p class="text-xs text-gray-500">Assigned: Marcus Webb · Due: Apr 7</p></div>
+              </div>
+              <div class="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3">
+                <span class="badge status-planning">Scheduled</span>
+                <div class="flex-1"><p class="text-sm font-medium">Clear roof drain obstruction</p><p class="text-xs text-gray-500">Assigned: Tom Chen · Due: Apr 3</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="bg-white border border-gray-200 rounded-lg p-4 mb-4">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="badge score-low">Issues Found</span>
+              <span class="text-xs text-gray-500">Confidence 94%</span>
+            </div>
+            <p class="text-sm font-semibold">Westside Tower — Roof</p>
+            <p class="text-xs text-gray-500">Roof Inspection Q1</p>
+          </div>
+          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
+            <p class="font-semibold mb-1">⚠ Action Required</p>
+            <p>2 open maintenance tasks linked to this photo. Repair scheduled for Apr 7.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── REPORTS ── -->
+    <div id="page-reports" class="hidden p-8">
+      <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Reports</h1>
+        <p class="text-sm text-gray-500 mt-0.5">Generate and download property reports</p>
+      </div>
+      <div class="grid grid-cols-3 gap-6">
+        <div class="bg-white border border-gray-200 rounded-lg p-5">
+          <h2 class="text-sm font-semibold mb-4">Generate Report</h2>
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Report Type</label>
+              <select class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"><option>Building Health Report</option><option>Project Summary</option><option>Photo Analysis Report</option><option>Maintenance History</option></select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Building</label>
+              <select class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"><option>All Buildings</option><option>Westside Tower</option><option>Elm Corporate</option><option>Harbor Plaza</option></select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Date Range</label>
+              <div class="grid grid-cols-2 gap-2">
+                <input type="date" class="px-3 py-2 border border-gray-300 rounded-md text-sm" value="2026-01-01" />
+                <input type="date" class="px-3 py-2 border border-gray-300 rounded-md text-sm" value="2026-03-31" />
+              </div>
+            </div>
+            <div class="space-y-1.5">
+              <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" checked class="rounded" /> Include AI analysis</label>
+              <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" checked class="rounded" /> Include photos</label>
+              <label class="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" class="rounded" /> Include maintenance log</label>
+            </div>
+            <button class="w-full py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">Generate Report</button>
+          </div>
+        </div>
+        <div class="col-span-2 bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 class="text-sm font-semibold">Recent Reports</h2>
+          </div>
+          <table class="min-w-full divide-y divide-gray-100 text-sm">
+            <thead class="bg-gray-50 text-xs text-gray-500 uppercase"><tr>
+              <th class="px-5 py-3 text-left">Report</th><th class="px-5 py-3 text-left">Building</th><th class="px-5 py-3 text-left">Generated</th><th class="px-5 py-3 text-left">Actions</th>
+            </tr></thead>
+            <tbody class="divide-y divide-gray-100">
+              <tr><td class="px-5 py-3 font-medium">Building Health Report</td><td class="px-5 py-3 text-gray-500">Westside Tower</td><td class="px-5 py-3 text-gray-500">Mar 28, 2026</td><td class="px-5 py-3"><button class="text-blue-600 hover:underline text-xs mr-3">Download PDF</button><button class="text-red-500 hover:underline text-xs">Delete</button></td></tr>
+              <tr><td class="px-5 py-3 font-medium">Photo Analysis Report</td><td class="px-5 py-3 text-gray-500">All Buildings</td><td class="px-5 py-3 text-gray-500">Mar 25, 2026</td><td class="px-5 py-3"><button class="text-blue-600 hover:underline text-xs mr-3">Download PDF</button><button class="text-red-500 hover:underline text-xs">Delete</button></td></tr>
+              <tr><td class="px-5 py-3 font-medium">Maintenance History</td><td class="px-5 py-3 text-gray-500">Harbor Plaza</td><td class="px-5 py-3 text-gray-500">Mar 20, 2026</td><td class="px-5 py-3"><button class="text-blue-600 hover:underline text-xs mr-3">Download PDF</button><button class="text-red-500 hover:underline text-xs">Delete</button></td></tr>
+              <tr><td class="px-5 py-3 font-medium">Project Summary</td><td class="px-5 py-3 text-gray-500">Elm Corporate</td><td class="px-5 py-3 text-gray-500">Mar 15, 2026</td><td class="px-5 py-3"><button class="text-blue-600 hover:underline text-xs mr-3">Download PDF</button><button class="text-red-500 hover:underline text-xs">Delete</button></td></tr>
+              <tr><td class="px-5 py-3 font-medium">Building Health Report</td><td class="px-5 py-3 text-gray-500">All Buildings</td><td class="px-5 py-3 text-gray-500">Mar 1, 2026</td><td class="px-5 py-3"><button class="text-blue-600 hover:underline text-xs mr-3">Download PDF</button><button class="text-red-500 hover:underline text-xs">Delete</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TEAM / USERS ── -->
+    <div id="page-users" class="hidden p-8">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Team</h1>
+          <p class="text-sm text-gray-500 mt-0.5">18 members · 16 active</p>
+        </div>
+        <button class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">+ Invite Member</button>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
+          <thead class="bg-gray-50 text-xs text-gray-500 uppercase"><tr>
+            <th class="px-5 py-3 text-left">Name</th><th class="px-5 py-3 text-left">Role</th><th class="px-5 py-3 text-left">Phone</th><th class="px-5 py-3 text-left">Status</th><th class="px-5 py-3 text-left">Last Active</th>
+          </tr></thead>
+          <tbody class="divide-y divide-gray-100" id="userRows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── TIME CLOCK ── -->
+    <div id="page-timeclock" class="hidden p-8 max-w-3xl mx-auto">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">My Time</h1>
+          <p class="text-sm text-gray-500 mt-0.5" id="tc-date"></p>
+        </div>
+        <div class="flex gap-1 bg-gray-100 rounded-lg p-1">
+          <button class="tab-btn active" onclick="switchTCTab('clock',this)">Clock</button>
+          <button class="tab-btn" onclick="switchTCTab('tcsheet',this)">Timesheet</button>
+        </div>
+      </div>
+
+      <!-- Clock tab -->
+      <div id="tctab-clock">
+        <div class="text-center mb-8">
+          <p class="text-6xl font-mono font-bold text-gray-900 tracking-tight" id="tc-clock">
+            12:00:00<span class="text-3xl text-gray-400 ml-2">PM</span>
+          </p>
+        </div>
+        <div class="rounded-xl border-2 p-5 mb-4 text-center" id="tc-status-banner">
+          <p class="text-base font-semibold" id="tc-status-text">○ Not Clocked In</p>
+          <p class="text-sm mt-1 hidden" id="tc-since-text"></p>
+          <p class="text-4xl font-mono font-bold text-green-700 mt-2 hidden" id="tc-elapsed"></p>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg p-5 mb-8">
+          <div id="tc-location-wrap" class="mb-3">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Location <span class="text-red-500">*</span></label>
+            <input id="tc-location" type="text" placeholder="e.g. 1450 Market St, Site 4"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
+            <textarea id="tc-notes" rows="2" placeholder="Notes for this shift…"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          </div>
+          <button id="tc-btn" onclick="toggleClock()"
+            class="w-full py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 text-sm">
+            ▶ Clock In
+          </button>
+        </div>
+      </div>
+
+      <!-- Timesheet tab -->
+      <div id="tctab-tcsheet" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <button onclick="tcPrevWeek()" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm hover:bg-gray-50">← Prev</button>
+          <div class="text-center">
+            <p class="text-sm font-semibold text-gray-900" id="tc-week-label">Mar 25 – Mar 31, 2026</p>
+            <span class="text-xs text-blue-600 font-medium">This Week</span>
+          </div>
+          <button onclick="tcNextWeek()" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-40" id="tc-next-btn">Next →</button>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-lg overflow-hidden mb-4">
+          <div class="grid grid-cols-8 divide-x divide-gray-100 bg-gray-50 text-xs font-medium text-gray-500 uppercase">
+            <div class="px-3 py-2">Day</div>
+            <div class="px-3 py-2 text-center">Mon</div><div class="px-3 py-2 text-center">Tue</div>
+            <div class="px-3 py-2 text-center">Wed</div><div class="px-3 py-2 text-center">Thu</div>
+            <div class="px-3 py-2 text-center">Fri</div><div class="px-3 py-2 text-center">Sat</div>
+            <div class="px-3 py-2 text-center">Sun</div>
+          </div>
+          <div class="grid grid-cols-8 divide-x divide-gray-100 text-sm" id="tc-hours-row"></div>
+        </div>
+        <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 mb-6">
+          <span class="text-sm font-medium text-gray-700">Week Total</span>
+          <span class="text-xl font-bold text-gray-900" id="tc-week-total">0.00h</span>
+        </div>
+        <div id="tc-shift-details" class="space-y-3"></div>
+      </div>
+    </div>
+
+    <!-- ── TIME REPORTS ── -->
+    <div id="page-timereports" class="hidden p-8">
+      <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Time History</h1>
+        <p class="text-sm text-gray-500 mt-0.5">Your complete time log</p>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
+          <thead class="bg-gray-50 text-xs text-gray-500 uppercase"><tr>
+            <th class="px-5 py-3 text-left">Date</th><th class="px-5 py-3 text-left">Clock In</th><th class="px-5 py-3 text-left">Clock Out</th><th class="px-5 py-3 text-left">Hours</th><th class="px-5 py-3 text-left">Location</th><th class="px-5 py-3 text-left">Status</th>
+          </tr></thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr><td class="px-5 py-3 font-medium">Mon Mar 31</td><td class="px-5 py-3 text-gray-500">7:52 AM</td><td class="px-5 py-3 text-gray-500">4:18 PM</td><td class="px-5 py-3 font-semibold">8.43h</td><td class="px-5 py-3 text-gray-500">Westside Tower</td><td class="px-5 py-3"><span class="badge status-approved">Approved</span></td></tr>
+            <tr><td class="px-5 py-3 font-medium">Fri Mar 28</td><td class="px-5 py-3 text-gray-500">8:01 AM</td><td class="px-5 py-3 text-gray-500">5:02 PM</td><td class="px-5 py-3 font-semibold">9.02h</td><td class="px-5 py-3 text-gray-500">Elm Corporate</td><td class="px-5 py-3"><span class="badge status-approved">Approved</span></td></tr>
+            <tr><td class="px-5 py-3 font-medium">Thu Mar 27</td><td class="px-5 py-3 text-gray-500">7:45 AM</td><td class="px-5 py-3 text-gray-500">3:30 PM</td><td class="px-5 py-3 font-semibold">7.75h</td><td class="px-5 py-3 text-gray-500">Harbor Plaza</td><td class="px-5 py-3"><span class="badge status-approved">Approved</span></td></tr>
+            <tr><td class="px-5 py-3 font-medium">Wed Mar 26</td><td class="px-5 py-3 text-gray-500">8:15 AM</td><td class="px-5 py-3 text-gray-500">4:45 PM</td><td class="px-5 py-3 font-semibold">8.50h</td><td class="px-5 py-3 text-gray-500">Westside Tower</td><td class="px-5 py-3"><span class="badge status-approved">Approved</span></td></tr>
+            <tr><td class="px-5 py-3 font-medium">Tue Mar 25</td><td class="px-5 py-3 text-gray-500">7:58 AM</td><td class="px-5 py-3 text-gray-500">4:30 PM</td><td class="px-5 py-3 font-semibold">8.53h</td><td class="px-5 py-3 text-gray-500">River Office</td><td class="px-5 py-3"><span class="badge status-approved">Approved</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── ADMIN PAYROLL ── -->
+    <div id="page-payroll" class="hidden p-8">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h1 class="text-2xl font-bold text-gray-900">Payroll Review</h1>
+          <p class="text-sm text-gray-500 mt-0.5">Week of Mar 25 – Mar 31, 2026</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="badge status-draft px-3 py-1">Draft</span>
+          <button class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">Approve Period</button>
+        </div>
+      </div>
+      <div class="flex items-center justify-between mb-4">
+        <button class="px-3 py-1.5 border border-gray-300 rounded-md text-sm hover:bg-gray-50">← Prev Week</button>
+        <p class="text-sm font-semibold">Mar 25 – Mar 31, 2026</p>
+        <button class="px-3 py-1.5 border border-gray-300 rounded-md text-sm hover:bg-gray-50">Next Week →</button>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-lg overflow-hidden mb-6">
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-gray-50 text-xs text-gray-500 uppercase">
+              <tr>
+                <th class="px-5 py-3 text-left w-48">Employee</th>
+                <th class="px-4 py-3 text-center">Mon</th><th class="px-4 py-3 text-center">Tue</th><th class="px-4 py-3 text-center">Wed</th>
+                <th class="px-4 py-3 text-center">Thu</th><th class="px-4 py-3 text-center">Fri</th><th class="px-4 py-3 text-center">Sat</th><th class="px-4 py-3 text-center">Sun</th>
+                <th class="px-4 py-3 text-center font-bold">Total</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100" id="payrollRows"></tbody>
+            <tfoot>
+              <tr class="bg-gray-50 font-bold">
+                <td class="px-5 py-3">Grand Total</td>
+                <td class="px-4 py-3 text-center">40.2h</td><td class="px-4 py-3 text-center">38.5h</td><td class="px-4 py-3 text-center">42.1h</td>
+                <td class="px-4 py-3 text-center">39.8h</td><td class="px-4 py-3 text-center">41.0h</td><td class="px-4 py-3 text-center text-gray-400">—</td><td class="px-4 py-3 text-center text-gray-400">—</td>
+                <td class="px-4 py-3 text-center text-blue-700">201.6h</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PAYROLL HISTORY ── -->
+    <div id="page-payrollhist" class="hidden p-8">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <div class="flex items-center gap-2 text-sm text-gray-500 mb-1">
+            <button onclick="navigate('payroll')" class="hover:text-gray-900">Payroll Review</button>
+            <span>/</span><span class="text-gray-900">History</span>
+          </div>
+          <h1 class="text-2xl font-bold text-gray-900">Payroll History</h1>
+          <p class="text-sm text-gray-500 mt-0.5">All payroll periods — submitted and in progress</p>
+        </div>
+        <button onclick="navigate('payroll')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">Current Week →</button>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
+          <thead class="bg-gray-50 text-xs text-gray-500 uppercase"><tr>
+            <th class="px-5 py-3 text-left">Pay Period</th><th class="px-5 py-3 text-left">Status</th><th class="px-5 py-3 text-left">Submitted</th><th class="px-5 py-3 text-left">Actions</th>
+          </tr></thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr><td class="px-5 py-4"><p class="font-semibold">Mar 25 – Mar 31, 2026</p><p class="text-xs text-gray-500">Week of March 25, 2026</p></td><td class="px-5 py-4"><span class="badge status-draft">Draft</span></td><td class="px-5 py-4 text-gray-500">—</td><td class="px-5 py-4"><button onclick="navigate('payroll')" class="text-blue-600 hover:underline">View</button></td></tr>
+            <tr><td class="px-5 py-4"><p class="font-semibold">Mar 18 – Mar 24, 2026</p><p class="text-xs text-gray-500">Week of March 18, 2026</p></td><td class="px-5 py-4"><span class="badge status-submitted">Submitted</span></td><td class="px-5 py-4 text-gray-500">Mar 25, 2026 8:14 AM</td><td class="px-5 py-4"><button onclick="navigate('payroll')" class="text-blue-600 hover:underline">View</button></td></tr>
+            <tr><td class="px-5 py-4"><p class="font-semibold">Mar 11 – Mar 17, 2026</p><p class="text-xs text-gray-500">Week of March 11, 2026</p></td><td class="px-5 py-4"><span class="badge status-submitted">Submitted</span></td><td class="px-5 py-4 text-gray-500">Mar 18, 2026 7:51 AM</td><td class="px-5 py-4"><button onclick="navigate('payroll')" class="text-blue-600 hover:underline">View</button></td></tr>
+            <tr><td class="px-5 py-4"><p class="font-semibold">Mar 4 – Mar 10, 2026</p><p class="text-xs text-gray-500">Week of March 4, 2026</p></td><td class="px-5 py-4"><span class="badge status-submitted">Submitted</span></td><td class="px-5 py-4 text-gray-500">Mar 11, 2026 8:02 AM</td><td class="px-5 py-4"><button onclick="navigate('payroll')" class="text-blue-600 hover:underline">View</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── PROFILE ── -->
+    <div id="page-profile" class="hidden p-8 max-w-2xl">
+      <h1 class="text-2xl font-bold mb-6">My Profile</h1>
+      <div class="bg-white border border-gray-200 rounded-lg p-6 mb-4">
+        <div class="flex items-center gap-4 mb-6">
+          <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold">AJ</div>
+          <div>
+            <p class="text-lg font-semibold">Alex Johnson</p>
+            <p class="text-sm text-gray-500">Admin · FieldMind Team</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div><label class="block text-xs font-medium text-gray-500 mb-1">First Name</label><input type="text" value="Alex" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" /></div>
+          <div><label class="block text-xs font-medium text-gray-500 mb-1">Last Name</label><input type="text" value="Johnson" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" /></div>
+          <div><label class="block text-xs font-medium text-gray-500 mb-1">Email</label><input type="email" value="alex@fieldmind.io" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" /></div>
+          <div><label class="block text-xs font-medium text-gray-500 mb-1">Phone</label><input type="tel" value="+1 555 123 4567" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" /></div>
+          <div class="col-span-2"><label class="block text-xs font-medium text-gray-500 mb-1">Job Title</label><input type="text" value="Facilities Manager" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" /></div>
+        </div>
+        <button class="mt-4 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">Save Changes</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ═══ DATA ═══════════════════════════════════════════════════════
+const buildings = [
+  { name:'Westside Tower',   type:'Commercial',   city:'San Francisco, CA', sqft:'124,500', health:88, projects:3 },
+  { name:'Elm Corporate',    type:'Office',       city:'Oakland, CA',       sqft:'67,200',  health:82, projects:2 },
+  { name:'Harbor Plaza',     type:'Mixed-Use',    city:'San Jose, CA',      sqft:'210,000', health:42, projects:5 },
+  { name:'River Office',     type:'Office',       city:'San Francisco, CA', sqft:'89,400',  health:61, projects:1 },
+  { name:'Lakeside Center',  type:'Retail',       city:'Berkeley, CA',      sqft:'45,000',  health:67, projects:2 },
+  { name:'Northgate Mall',   type:'Retail',       city:'Walnut Creek, CA',  sqft:'320,000', health:71, projects:4 },
+  { name:'Pine Street Lofts',type:'Residential',  city:'San Francisco, CA', sqft:'38,000',  health:91, projects:1 },
+  { name:'Bayview Industrial',type:'Industrial',  city:'Richmond, CA',      sqft:'184,000', health:79, projects:0 },
+];
+
+const projects = [
+  { name:'Roof Inspection Q1',    building:'Westside Tower',  status:'Active',   photos:142, date:'Mar 28, 2026' },
+  { name:'HVAC Maintenance',      building:'Elm Corporate',   status:'Active',   photos:89,  date:'Mar 26, 2026' },
+  { name:'Parking Lot Survey',    building:'Harbor Plaza',    status:'Planning', photos:0,   date:'Mar 20, 2026' },
+  { name:'Fire Safety Audit',     building:'River Office',    status:'Complete', photos:203, date:'Mar 15, 2026' },
+  { name:'Window Replacement',    building:'Westside Tower',  status:'Planning', photos:17,  date:'Mar 12, 2026' },
+  { name:'Elevator Modernization',building:'Northgate Mall',  status:'Active',   photos:54,  date:'Mar 10, 2026' },
+  { name:'Plumbing Overhaul',     building:'Harbor Plaza',    status:'Active',   photos:76,  date:'Mar 8, 2026' },
+  { name:'Landscaping Refresh',   building:'Elm Corporate',   status:'Complete', photos:38,  date:'Feb 28, 2026' },
+];
+
+const users = [
+  { name:'Alex Johnson',   role:'Admin',      phone:'+1 555 123 4567', active:true,  last:'Just now' },
+  { name:'Sarah Kim',      role:'PM',         phone:'+1 555 234 5678', active:true,  last:'2h ago' },
+  { name:'Marcus Webb',    role:'FieldTech',  phone:'+1 555 345 6789', active:true,  last:'4h ago' },
+  { name:'Tom Chen',       role:'FieldTech',  phone:'+1 555 456 7890', active:true,  last:'Today' },
+  { name:'Diana Cruz',     role:'FieldTech',  phone:'+1 555 567 8901', active:true,  last:'Today' },
+  { name:'James Park',     role:'Office',     phone:'+1 555 678 9012', active:true,  last:'Yesterday' },
+  { name:'Lisa Nguyen',    role:'PM',         phone:'+1 555 789 0123', active:true,  last:'Today' },
+  { name:'Carlos Reyes',   role:'FieldTech',  phone:'+1 555 890 1234', active:false, last:'2 weeks ago' },
+];
+
+const payrollData = [
+  { name:'Alex Johnson',   hours:[8.43, 8.53, 8.50, 7.75, 9.02, 0, 0] },
+  { name:'Marcus Webb',    hours:[8.00, 7.50, 8.25, 8.00, 7.75, 0, 0] },
+  { name:'Tom Chen',       hours:[7.80, 8.20, 7.90, 8.10, 8.30, 0, 0] },
+  { name:'Diana Cruz',     hours:[8.50, 8.00, 8.75, 7.50, 8.50, 0, 0] },
+  { name:'Sarah Kim',      hours:[7.47, 6.32, 8.76, 8.45, 7.43, 0, 0] },
+];
+
+// ═══ TIME CLOCK STATE ═══════════════════════════════════════════
+let isClockedIn = false;
+let clockInTime = null;
+let clockInterval = null;
+let elapsedInterval = null;
+let tcWeekOffset = 0;
+
+const mockTimesheet = {
+  0: [ // current week
+    { day:0, in:'7:52 AM', out:'4:18 PM', h:8.43, loc:'Westside Tower' },
+    { day:1, in:'7:58 AM', out:'4:30 PM', h:8.53, loc:'River Office' },
+    { day:2, in:'8:15 AM', out:'4:45 PM', h:8.50, loc:'Westside Tower' },
+    { day:3, in:'7:45 AM', out:'3:30 PM', h:7.75, loc:'Harbor Plaza' },
+    { day:4, in:'8:01 AM', out:'5:02 PM', h:9.02, loc:'Elm Corporate' },
+  ],
+  '-1': [
+    { day:0, in:'7:55 AM', out:'4:20 PM', h:8.42, loc:'Westside Tower' },
+    { day:2, in:'8:10 AM', out:'4:40 PM', h:8.50, loc:'Harbor Plaza' },
+    { day:4, in:'8:05 AM', out:'4:55 PM', h:8.83, loc:'Elm Corporate' },
+  ],
+};
+
+// ═══ PIN LOGIN ═══════════════════════════════════════════════════
+let pinValue = '';
+const pinInput = document.getElementById('pinInput');
+pinInput.addEventListener('input', function() {
+  pinValue = this.value.replace(/\D/g,'').slice(0,8);
+  this.value = pinValue;
+  updateDots();
+  if (pinValue.length === 8) handlePin();
+});
+document.addEventListener('keydown', () => pinInput.focus());
+pinInput.focus();
+
+function updateDots() {
+  for (let i=0; i<8; i++) {
+    document.getElementById('d'+i).classList.toggle('filled', i < pinValue.length);
+  }
+}
+
+function handlePin() {
+  if (pinValue.length === 8) {
+    setTimeout(() => {
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      document.getElementById('app').classList.add('flex');
+      navigate('dashboard');
+      startClock();
+    }, 300);
+  }
+}
+
+function showForgotPin() { document.getElementById('forgotPinModal').classList.remove('hidden'); }
+function hideForgotPin() { document.getElementById('forgotPinModal').classList.add('hidden'); }
+
+function logout() {
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  pinValue = ''; pinInput.value = ''; updateDots();
+  clearInterval(clockInterval); clearInterval(elapsedInterval);
+  isClockedIn = false;
+}
+
+// ═══ NAVIGATION ══════════════════════════════════════════════════
+const pages = ['dashboard','buildings','building-detail','projects','photos','photo-detail',
+  'reports','users','timeclock','timereports','payroll','payrollhist','profile'];
+const navMap = {
+  'dashboard':'nav-dashboard','buildings':'nav-buildings','projects':'nav-projects',
+  'photos':'nav-photos','reports':'nav-reports','users':'nav-users',
+  'timeclock':'nav-timeclock','timereports':'nav-timereports',
+  'payroll':'nav-payroll','payrollhist':'nav-payrollhist'
+};
+
+function navigate(page) {
+  pages.forEach(p => {
+    const el = document.getElementById('page-'+p);
+    if (el) el.classList.add('hidden');
+  });
+  const target = document.getElementById('page-'+page);
+  if (target) target.classList.remove('hidden');
+
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('nav-active'));
+  const nav = navMap[page];
+  if (nav) document.getElementById(nav).classList.add('nav-active');
+
+  if (page === 'timeclock') renderTimesheet();
+  document.querySelector('main').scrollTop = 0;
+}
+
+// ═══ POPULATE TABLES ═════════════════════════════════════════════
+function renderBuildings() {
+  const tbody = document.getElementById('buildingRows');
+  tbody.innerHTML = buildings.map(b => {
+    const sc = b.health >= 80 ? 'score-high' : b.health >= 60 ? 'score-mid' : 'score-low';
+    return `<tr class="hover:bg-gray-50 cursor-pointer" onclick="showBuildingDetail('${b.name}')">
+      <td class="px-5 py-3 font-medium text-blue-600 hover:underline">${b.name}</td>
+      <td class="px-5 py-3 text-gray-500">${b.type}</td>
+      <td class="px-5 py-3 text-gray-500">${b.city}</td>
+      <td class="px-5 py-3 text-gray-500">${b.sqft}</td>
+      <td class="px-5 py-3"><span class="badge ${sc}">${b.health}%</span></td>
+      <td class="px-5 py-3 text-gray-500">${b.projects}</td>
+    </tr>`;
+  }).join('');
+}
+
+function showBuildingDetail(name) {
+  const b = buildings.find(x => x.name === name);
+  document.getElementById('bdetail-name').textContent = b.name;
+  document.getElementById('bdetail-sub').textContent = `${b.type} · ${b.city}`;
+  const sc = b.health >= 80 ? 'score-high' : b.health >= 60 ? 'score-mid' : 'score-low';
+  const scoreEl = document.getElementById('bdetail-score');
+  scoreEl.textContent = b.health + '%';
+  scoreEl.className = 'badge text-sm px-3 py-1 ' + sc;
+  switchBTab('overview', document.querySelector('#bdetail-tabs .tab-btn'));
+  navigate('building-detail');
+}
+
+function renderProjects(filter='all') {
+  const tbody = document.getElementById('projectRows');
+  const filtered = filter === 'all' ? projects : projects.filter(p => p.status === filter);
+  tbody.innerHTML = filtered.map(p => {
+    const sc = p.status==='Active'?'status-active':p.status==='Planning'?'status-planning':'status-complete';
+    return `<tr class="hover:bg-gray-50">
+      <td class="px-5 py-3 font-medium text-blue-600 hover:underline cursor-pointer">${p.name}</td>
+      <td class="px-5 py-3 text-gray-500">${p.building}</td>
+      <td class="px-5 py-3"><span class="badge ${sc}">${p.status}</span></td>
+      <td class="px-5 py-3 text-gray-500">${p.photos}</td>
+      <td class="px-5 py-3 text-gray-500">${p.date}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterProjects(filter, btn) {
+  document.querySelectorAll('.project-filter').forEach(b => {
+    b.className = 'px-3 py-1.5 border border-gray-300 rounded-md text-sm text-gray-600 project-filter';
+  });
+  btn.className = 'px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm font-medium project-filter';
+  renderProjects(filter);
+}
+
+function renderUsers() {
+  const tbody = document.getElementById('userRows');
+  tbody.innerHTML = users.map(u => `<tr class="hover:bg-gray-50">
+    <td class="px-5 py-3">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-semibold">${u.name.split(' ').map(n=>n[0]).join('')}</div>
+        <span class="font-medium">${u.name}</span>
+      </div>
+    </td>
+    <td class="px-5 py-3"><span class="badge ${u.role==='Admin'||u.role==='PM'?'status-planning':u.role==='FieldTech'?'status-active':'status-draft'}">${u.role}</span></td>
+    <td class="px-5 py-3 text-gray-500">${u.phone}</td>
+    <td class="px-5 py-3"><span class="badge ${u.active?'status-active':'status-complete'}">${u.active?'Active':'Inactive'}</span></td>
+    <td class="px-5 py-3 text-gray-500">${u.last}</td>
+  </tr>`).join('');
+}
+
+function renderPayroll() {
+  const tbody = document.getElementById('payrollRows');
+  tbody.innerHTML = payrollData.map(e => {
+    const total = e.hours.reduce((s,h)=>s+h,0).toFixed(2);
+    const cells = e.hours.map(h => `<td class="px-4 py-3 text-center ${h>0?'text-gray-900':'text-gray-300'}">${h>0?h.toFixed(2)+'h':'—'}</td>`).join('');
+    return `<tr class="hover:bg-gray-50">
+      <td class="px-5 py-3 font-medium">${e.name}</td>
+      ${cells}
+      <td class="px-4 py-3 text-center font-bold text-blue-700">${total}h</td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══ CLOCK ═══════════════════════════════════════════════════════
+function startClock() {
+  clearInterval(clockInterval);
+  clockInterval = setInterval(() => {
+    const now = new Date();
+    const h = now.getHours(); const m = now.getMinutes(); const s = now.getSeconds();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hh = String(h % 12 || 12).padStart(2,'0');
+    const mm = String(m).padStart(2,'0');
+    const ss = String(s).padStart(2,'0');
+    const el = document.getElementById('tc-clock');
+    if (el) el.innerHTML = `${hh}:${mm}:${ss}<span class="text-3xl text-gray-400 ml-2">${ampm}</span>`;
+    const dateEl = document.getElementById('tc-date');
+    if (dateEl) dateEl.textContent = now.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  }, 1000);
+}
+
+function toggleClock() {
+  if (!isClockedIn) {
+    const loc = document.getElementById('tc-location').value.trim();
+    if (!loc) { document.getElementById('tc-location').focus(); document.getElementById('tc-location').style.borderColor='#ef4444'; return; }
+    isClockedIn = true;
+    clockInTime = new Date();
+    const banner = document.getElementById('tc-status-banner');
+    banner.className = 'rounded-xl border-2 p-5 mb-4 text-center border-green-300 bg-green-50';
+    document.getElementById('tc-status-text').textContent = '● Clocked In';
+    document.getElementById('tc-status-text').className = 'text-base font-semibold text-green-700';
+    document.getElementById('tc-since-text').textContent = `Since ${clockInTime.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})} · ${loc}`;
+    document.getElementById('tc-since-text').classList.remove('hidden');
+    document.getElementById('tc-elapsed').classList.remove('hidden');
+    document.getElementById('tc-location-wrap').classList.add('hidden');
+    const btn = document.getElementById('tc-btn');
+    btn.textContent = '⏹ Clock Out';
+    btn.className = 'w-full py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 text-sm';
+    elapsedInterval = setInterval(updateElapsed, 1000);
+  } else {
+    isClockedIn = false;
+    clearInterval(elapsedInterval);
+    const banner = document.getElementById('tc-status-banner');
+    banner.className = 'rounded-xl border-2 p-5 mb-4 text-center border-gray-200 bg-white';
+    document.getElementById('tc-status-text').textContent = '○ Not Clocked In';
+    document.getElementById('tc-status-text').className = 'text-base font-semibold text-gray-500';
+    document.getElementById('tc-since-text').classList.add('hidden');
+    document.getElementById('tc-elapsed').classList.add('hidden');
+    document.getElementById('tc-location-wrap').classList.remove('hidden');
+    document.getElementById('tc-location').value = '';
+    document.getElementById('tc-notes').value = '';
+    const btn = document.getElementById('tc-btn');
+    btn.textContent = '▶ Clock In';
+    btn.className = 'w-full py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 text-sm';
+  }
+}
+
+function updateElapsed() {
+  if (!clockInTime) return;
+  const diff = Math.floor((Date.now() - clockInTime.getTime()) / 1000);
+  const h = Math.floor(diff/3600);
+  const m = Math.floor((diff%3600)/60);
+  const s = diff%60;
+  const el = document.getElementById('tc-elapsed');
+  if (el) el.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+// ═══ TIMESHEET ═══════════════════════════════════════════════════
+function renderTimesheet() {
+  const data = mockTimesheet[tcWeekOffset] || mockTimesheet['-1'] || [];
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const hoursRow = document.getElementById('tc-hours-row');
+  const today = new Date().getDay(); // 0=Sun..6=Sat
+  const todayIdx = today === 0 ? 6 : today - 1; // convert to Mon=0..Sun=6
+
+  const hoursPerDay = [0,0,0,0,0,0,0];
+  data.forEach(e => { hoursPerDay[e.day] = e.h; });
+  const total = hoursPerDay.reduce((s,h)=>s+h,0);
+
+  hoursRow.innerHTML = '<div class="px-3 py-3 text-xs text-gray-500 flex items-center">Hours</div>' +
+    hoursPerDay.map((h,i) => {
+      const isToday = i === todayIdx && tcWeekOffset === 0;
+      const cls = isToday ? 'bg-blue-50 text-blue-700' : h > 0 ? 'text-gray-900' : 'text-gray-300';
+      return `<div class="px-3 py-3 text-center text-sm font-semibold ${cls}">${h > 0 ? h.toFixed(1)+'h' : '—'}</div>`;
+    }).join('');
+
+  document.getElementById('tc-week-total').textContent = total.toFixed(2) + 'h';
+
+  const details = document.getElementById('tc-shift-details');
+  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  details.innerHTML = data.map((e,i) => `
+    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden" id="shift-card-${i}">
+      <div class="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+        <p class="text-sm font-semibold">${days[e.day]}</p>
+        <p class="text-sm font-bold">${e.h.toFixed(2)}h</p>
+      </div>
+      <!-- Normal row -->
+      <div id="shift-row-${i}" class="px-4 py-3 flex items-center gap-4">
+        <div class="text-sm font-medium w-32">${e.in} → ${e.out}</div>
+        <div class="text-sm font-semibold w-14">${e.h.toFixed(1)}h</div>
+        <div class="text-sm text-gray-500 flex-1">${e.loc}</div>
+        ${e.approved ? '<span class="text-xs text-green-600 font-medium">✓ Approved</span>' :
+          `<button onclick="startEditShift(${i},'${e.in}','${e.out}','${e.loc}')" class="text-xs text-blue-600 hover:underline">Edit</button>`}
+      </div>
+      <!-- Edit form (hidden by default) -->
+      <div id="shift-edit-${i}" class="hidden px-4 py-3 bg-blue-50 border-t border-blue-100">
+        <div class="grid grid-cols-2 gap-2 mb-2">
+          <div><label class="block text-xs font-medium text-gray-600 mb-0.5">Clock In</label>
+            <input type="time" id="edit-in-${i}" class="w-full px-2 py-1 border border-gray-300 rounded text-xs" /></div>
+          <div><label class="block text-xs font-medium text-gray-600 mb-0.5">Clock Out</label>
+            <input type="time" id="edit-out-${i}" class="w-full px-2 py-1 border border-gray-300 rounded text-xs" /></div>
+        </div>
+        <div class="mb-3"><label class="block text-xs font-medium text-gray-600 mb-0.5">Location</label>
+          <input type="text" id="edit-loc-${i}" class="w-full px-2 py-1 border border-gray-300 rounded text-xs" /></div>
+        <div class="flex gap-2">
+          <button onclick="saveEditShift(${i})" class="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700">Save</button>
+          <button onclick="cancelEditShift(${i})" class="px-3 py-1 border border-gray-300 text-gray-600 text-xs rounded hover:bg-gray-50">Cancel</button>
+        </div>
+      </div>
+    </div>
+  `).join('') || '<p class="text-sm text-gray-500 text-center py-8">No time entries this week.</p>';
+
+  updateWeekLabel();
+}
+
+function tcPrevWeek() { tcWeekOffset--; renderTimesheet(); }
+function tcNextWeek() { if (tcWeekOffset < 0) { tcWeekOffset++; renderTimesheet(); } }
+
+function updateWeekLabel() {
+  const base = new Date(2026, 2, 25); // Mar 25, 2026 (Mon)
+  const start = new Date(base); start.setDate(base.getDate() + tcWeekOffset * 7);
+  const end = new Date(start); end.setDate(start.getDate() + 6);
+  const fmt = d => d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  document.getElementById('tc-week-label').textContent = `${fmt(start)} – ${fmt(end)}, 2026`;
+  document.getElementById('tc-next-btn').disabled = tcWeekOffset >= 0;
+}
+
+// ═══ TABS ════════════════════════════════════════════════════════
+function switchBTab(id, btn) {
+  ['overview','bphotos','maintenance','health'].forEach(t => {
+    document.getElementById('btab-'+t).classList.add('hidden');
+  });
+  document.getElementById('btab-'+id).classList.remove('hidden');
+  if (btn) {
+    document.querySelectorAll('#bdetail-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+}
+
+function switchPTab(id, btn) {
+  ['ai','pmeta','comments','tasks'].forEach(t => {
+    document.getElementById('ptab-'+t).classList.add('hidden');
+  });
+  document.getElementById('ptab-'+id).classList.remove('hidden');
+  document.querySelectorAll('#page-photo-detail .tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function switchTCTab(id, btn) {
+  ['clock','tcsheet'].forEach(t => document.getElementById('tctab-'+t).classList.add('hidden'));
+  document.getElementById('tctab-'+id).classList.remove('hidden');
+  document.querySelectorAll('#page-timeclock .tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (id === 'tcsheet') renderTimesheet();
+}
+
+// ═══ TIMESHEET EDIT ══════════════════════════════════════════════
+function to24(time12) {
+  // "7:52 AM" → "07:52"
+  const [time, mod] = time12.split(' ');
+  let [h, m] = time.split(':').map(Number);
+  if (mod === 'PM' && h !== 12) h += 12;
+  if (mod === 'AM' && h === 12) h = 0;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
+function to12(time24) {
+  const [h, m] = time24.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hh = h % 12 || 12;
+  return `${hh}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+function startEditShift(i, inTime, outTime, loc) {
+  document.getElementById('shift-row-'+i).classList.add('hidden');
+  document.getElementById('shift-edit-'+i).classList.remove('hidden');
+  document.getElementById('edit-in-'+i).value = to24(inTime);
+  document.getElementById('edit-out-'+i).value = to24(outTime);
+  document.getElementById('edit-loc-'+i).value = loc;
+}
+
+function cancelEditShift(i) {
+  document.getElementById('shift-row-'+i).classList.remove('hidden');
+  document.getElementById('shift-edit-'+i).classList.add('hidden');
+}
+
+function saveEditShift(i) {
+  const inVal  = document.getElementById('edit-in-'+i).value;
+  const outVal = document.getElementById('edit-out-'+i).value;
+  const loc    = document.getElementById('edit-loc-'+i).value.trim();
+  if (!inVal || !outVal) return;
+
+  // Recalculate hours
+  const [ih, im] = inVal.split(':').map(Number);
+  const [oh, om] = outVal.split(':').map(Number);
+  const h = Math.max(0, (oh * 60 + om - (ih * 60 + im)) / 60);
+
+  // Update the display row
+  const row = document.getElementById('shift-row-'+i);
+  row.innerHTML = `
+    <div class="text-sm font-medium w-32">${to12(inVal)} → ${to12(outVal)}</div>
+    <div class="text-sm font-semibold w-14">${h.toFixed(1)}h</div>
+    <div class="text-sm text-gray-500 flex-1">${loc}</div>
+    <button onclick="startEditShift(${i},'${to12(inVal)}','${to12(outVal)}','${loc}')" class="text-xs text-blue-600 hover:underline">Edit</button>
+  `;
+  row.classList.remove('hidden');
+  document.getElementById('shift-edit-'+i).classList.add('hidden');
+
+  // Update the week total (rough recalc from rendered rows)
+  let total = 0;
+  document.querySelectorAll('[id^="shift-row-"]').forEach(r => {
+    const hEl = r.querySelector('.text-sm.font-semibold.w-14');
+    if (hEl) total += parseFloat(hEl.textContent) || 0;
+  });
+  document.getElementById('tc-week-total').textContent = total.toFixed(2) + 'h';
+}
+
+// ═══ CAMERA ══════════════════════════════════════════════════════
+let camStream = null;
+
+function camStep(name) {
+  ['preview','captured','uploading','done'].forEach(s => {
+    const el = document.getElementById('cam-step-'+s);
+    if (el) el.classList.toggle('hidden', s !== name);
+  });
+  const titles = { preview:'Take Photo', captured:'Review & Upload', uploading:'Uploading…', done:'Upload Complete' };
+  document.getElementById('cam-title').textContent = titles[name] || '';
+}
+
+async function openCamera() {
+  document.getElementById('cameraModal').classList.remove('hidden');
+  document.getElementById('cam-error-wrap').classList.add('hidden');
+  document.getElementById('cam-video-wrap').classList.remove('hidden');
+  camStep('preview');
+
+  if (navigator.mediaDevices?.getUserMedia) {
+    try {
+      camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'environment' } });
+      const vid = document.getElementById('cam-video');
+      vid.srcObject = camStream;
+      vid.play();
+    } catch {
+      showCameraError('Camera access denied. Use the button below to pick a photo.');
+    }
+  } else {
+    showCameraError('Live camera not supported in this browser. Use the button below.');
+  }
+}
+
+function showCameraError(msg) {
+  document.getElementById('cam-video-wrap').classList.add('hidden');
+  document.getElementById('cam-error-wrap').classList.remove('hidden');
+  document.getElementById('cam-error-msg').textContent = msg;
+}
+
+function closeCamera() {
+  if (camStream) { camStream.getTracks().forEach(t=>t.stop()); camStream = null; }
+  document.getElementById('cameraModal').classList.add('hidden');
+}
+
+function capturePhoto() {
+  const vid = document.getElementById('cam-video');
+  const canvas = document.getElementById('cam-canvas');
+  canvas.width = vid.videoWidth || 640;
+  canvas.height = vid.videoHeight || 480;
+  canvas.getContext('2d').drawImage(vid, 0, 0);
+  document.getElementById('cam-preview-img').src = canvas.toDataURL('image/jpeg');
+  if (camStream) { camStream.getTracks().forEach(t=>t.stop()); camStream = null; }
+  camStep('captured');
+}
+
+function handleFileInput(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => { document.getElementById('cam-preview-img').src = ev.target.result; };
+  reader.readAsDataURL(file);
+  camStep('captured');
+}
+
+function retakePhoto() {
+  document.getElementById('cam-preview-img').src = '';
+  openCamera();
+}
+
+function uploadPhoto() {
+  const building = document.getElementById('cam-building').value;
+  if (!building) {
+    const err = document.getElementById('cam-upload-error');
+    err.textContent = 'Please select a building before uploading.';
+    err.classList.remove('hidden');
+    return;
+  }
+  document.getElementById('cam-upload-error').classList.add('hidden');
+  camStep('uploading');
+  // Simulate upload delay
+  setTimeout(() => camStep('done'), 1800);
+}
+
+// ═══ INIT ════════════════════════════════════════════════════════
+renderBuildings();
+renderProjects();
+renderUsers();
+renderPayroll();
+</script>
+</body>
+</html>

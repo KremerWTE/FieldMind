@@ -7,6 +7,7 @@ public class InviteUserRequest
     public string LastName { get; set; } = string.Empty;
     public string Role { get; set; } = "FieldTech";
     public string? JobTitle { get; set; }
+    public string? PhoneNumber { get; set; }
 }
 
 public class UpdateUserRequest

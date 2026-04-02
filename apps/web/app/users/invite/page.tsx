@@ -12,9 +12,11 @@ export default function InviteUserPage() {
     lastName: '',
     jobTitle: '',
     role: 'FieldTech',
+    phoneNumber: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [inviteResult, setInviteResult] = useState<{ pin: string; fullName: string } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +34,11 @@ export default function InviteUserPage() {
       });
 
       if (response.ok) {
-        router.push('/users');
+        const data = await response.json();
+        setInviteResult({
+          pin: data.pin,
+          fullName: `${data.user.firstName} ${data.user.lastName}`,
+        });
       } else {
         const data = await response.json();
         setError(data.message || 'Failed to invite user');
@@ -43,6 +49,44 @@ export default function InviteUserPage() {
       setLoading(false);
     }
   };
+
+  if (inviteResult) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-lg">
+        <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+          <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">{inviteResult.fullName} Added</h2>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 my-6">
+            <p className="text-sm font-medium text-blue-800 mb-2">Initial Login PIN</p>
+            <p className="text-4xl font-mono font-bold text-blue-900 tracking-widest">{inviteResult.pin}</p>
+            <p className="text-xs text-blue-600 mt-3">
+              {formData.phoneNumber
+                ? 'This PIN has been sent via SMS to their phone number.'
+                : 'Share this PIN with the employee. They will use it to log in.'}
+            </p>
+          </div>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => {
+                setInviteResult(null);
+                setFormData({ email: '', firstName: '', lastName: '', jobTitle: '', role: 'FieldTech', phoneNumber: '' });
+              }}
+              className="px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Invite Another
+            </button>
+            <Link href="/users" className="px-5 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
+              Done
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
@@ -84,8 +128,22 @@ export default function InviteUserPage() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <p className="text-sm text-gray-500 mt-1">
-              An invitation email will be sent to this address
+              Used for account identification
             </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Phone Number
+              <span className="ml-2 text-xs text-gray-400">(PIN will be sent via SMS)</span>
+            </label>
+            <input
+              type="tel"
+              value={formData.phoneNumber}
+              onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+              placeholder="+1 (555) 000-0000"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -154,10 +212,10 @@ export default function InviteUserPage() {
           <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
             <h3 className="text-sm font-medium text-blue-900 mb-2">What happens next?</h3>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• User will receive an invitation email</li>
-              <li>• Email contains temporary login credentials</li>
-              <li>• User must verify email and set a new password</li>
-              <li>• User will have access based on the selected role</li>
+              <li>• An 8-digit PIN is generated for the user</li>
+              <li>• If phone number provided, PIN is sent via SMS automatically</li>
+              <li>• Otherwise, the PIN is shown to you to share with the employee</li>
+              <li>• User signs in on web or mobile using only their PIN</li>
             </ul>
           </div>
 
@@ -167,7 +225,7 @@ export default function InviteUserPage() {
               disabled={loading}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Sending Invitation...' : 'Send Invitation'}
+              {loading ? 'Inviting...' : 'Invite User'}
             </button>
             <Link
               href="/users"

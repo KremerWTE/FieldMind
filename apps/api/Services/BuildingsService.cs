@@ -137,6 +137,40 @@ public class BuildingsService
         };
     }
 
+    public async Task<List<object>> GetAllMaintenanceEvents(string teamId, string? severity, string? status, int limit)
+    {
+        var query = _context.MaintenanceEvents
+            .Where(me => me.Building.TeamId == teamId)
+            .Include(me => me.Building)
+            .AsQueryable();
+
+        if (!string.IsNullOrEmpty(severity) && Enum.TryParse<IssueSeverity>(severity, true, out var sev))
+            query = query.Where(me => me.Severity == sev);
+
+        if (!string.IsNullOrEmpty(status) && Enum.TryParse<MaintenanceEventStatus>(status, true, out var st))
+            query = query.Where(me => me.Status == st);
+
+        var events = await query
+            .OrderByDescending(me => me.CreatedAt)
+            .Take(limit)
+            .ToListAsync();
+
+        return events.Select(me => (object)new
+        {
+            me.Id,
+            me.Title,
+            me.Description,
+            me.Type,
+            me.Severity,
+            me.Status,
+            me.DetectedBy,
+            me.CreatedAt,
+            me.ResolvedAt,
+            BuildingId = me.BuildingId,
+            BuildingName = me.Building?.Name,
+        }).ToList();
+    }
+
     public async Task<List<MaintenanceEvent>> GetBuildingMaintenanceEvents(string buildingId, string teamId)
     {
         return await _context.MaintenanceEvents

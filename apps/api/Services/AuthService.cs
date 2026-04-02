@@ -1,6 +1,7 @@
 using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
@@ -185,6 +186,35 @@ public class AuthService
         };
     }
 
+    public async Task<AuthResponse?> LoginWithPin(string pin)
+    {
+        var hash = HashPin(pin);
+        var user = await _context.Users
+            .Include(u => u.Team)
+            .FirstOrDefaultAsync(u => u.Pin == hash && u.IsActive);
+
+        if (user == null)
+            return null;
+
+        var (accessToken, refreshToken) = await GenerateTokens(user);
+
+        return new AuthResponse
+        {
+            User = new UserDto
+            {
+                Id = user.Id,
+                Email = user.Email,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Role = user.Role.ToString(),
+                TeamId = user.TeamId,
+                Team = new TeamDto { Id = user.Team.Id, Name = user.Team.Name, Slug = user.Team.Slug }
+            },
+            AccessToken = accessToken,
+            RefreshToken = refreshToken
+        };
+    }
+
     public async Task Logout(string refreshToken)
     {
         var token = await _context.RefreshTokens.FirstOrDefaultAsync(rt => rt.Token == refreshToken);
@@ -193,5 +223,11 @@ public class AuthService
             _context.RefreshTokens.Remove(token);
             await _context.SaveChangesAsync();
         }
+    }
+
+    public static string HashPin(string pin)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(pin));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 }

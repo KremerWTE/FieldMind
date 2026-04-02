@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,51 +9,47 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ScrollView,
 } from 'react-native';
 import apiService from '../services/api.service';
 
-export default function LoginScreen({ navigation }: any) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+interface LoginScreenProps {
+  onLoginSuccess: () => void;
+  navigation: any;
+}
 
-  // Quick login for testing (remove in production)
-  const quickLogin = (userType: 'admin' | 'pm' | 'tech') => {
-    const credentials = {
-      admin: { email: 'admin@fieldmind.io', password: 'password123' },
-      pm: { email: 'pm@fieldmind.io', password: 'password123' },
-      tech: { email: 'tech@fieldmind.io', password: 'password123' },
-    };
-    setEmail(credentials[userType].email);
-    setPassword(credentials[userType].password);
+export default function LoginScreen({ onLoginSuccess, navigation }: LoginScreenProps) {
+  const [pin, setPin] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+
+  const handlePinChange = async (text: string) => {
+    const digits = text.replace(/\D/g, '').slice(0, 8);
+    setPin(digits);
+
+    if (digits.length === 8) {
+      await submitPin(digits);
+    }
   };
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert('Missing Information', 'Please enter email and password');
-      return;
-    }
-
+  const submitPin = async (pinValue: string) => {
     setIsLoading(true);
-
     try {
-      const { user } = await apiService.login(email, password);
-      console.log('Login successful:', user);
-
-      // Navigate to main app
-      navigation.replace('JobSiteSelect');
+      await apiService.loginWithPin(pinValue);
+      onLoginSuccess();
     } catch (error: any) {
-      console.error('Login failed:', error);
-
-      const errorMessage =
-        error.response?.data?.message ||
-        error.message ||
-        'Login failed. Please check your credentials.';
-
-      Alert.alert('Login Failed', errorMessage);
+      const msg =
+        error.response?.data?.message || error.message || 'Invalid PIN. Please try again.';
+      Alert.alert('Login Failed', msg);
+      setPin('');
+      inputRef.current?.focus();
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleQuickLogin = (preset: '12345678' | '87654321' | '11223344') => {
+    handlePinChange(preset);
   };
 
   return (
@@ -61,86 +57,97 @@ export default function LoginScreen({ navigation }: any) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.header}>
-        <Text style={styles.logo}>📱</Text>
-        <Text style={styles.title}>FieldMind</Text>
-        <Text style={styles.subtitle}>Photo Documentation & AI Analysis</Text>
-      </View>
-
-      <View style={styles.form}>
-        <Text style={styles.label}>Email</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="email@example.com"
-          placeholderTextColor="#9ca3af"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          autoCorrect={false}
-          editable={!isLoading}
-        />
-
-        <Text style={styles.label}>Password</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter your password"
-          placeholderTextColor="#9ca3af"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-          editable={!isLoading}
-        />
-
-        <TouchableOpacity
-          style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
-          onPress={handleLogin}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.loginButtonText}>Login</Text>
-          )}
-        </TouchableOpacity>
-
-        {/* Quick Login for Testing */}
-        <View style={styles.quickLoginSection}>
-          <Text style={styles.quickLoginTitle}>Quick Login (Testing):</Text>
-          <View style={styles.quickLoginButtons}>
-            <TouchableOpacity
-              style={styles.quickLoginButton}
-              onPress={() => quickLogin('admin')}
-              disabled={isLoading}
-            >
-              <Text style={styles.quickLoginButtonText}>Admin</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickLoginButton}
-              onPress={() => quickLogin('pm')}
-              disabled={isLoading}
-            >
-              <Text style={styles.quickLoginButtonText}>PM</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickLoginButton}
-              onPress={() => quickLogin('tech')}
-              disabled={isLoading}
-            >
-              <Text style={styles.quickLoginButtonText}>Tech</Text>
-            </TouchableOpacity>
-          </View>
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.logo}>FM</Text>
+          <Text style={styles.title}>FieldMind</Text>
+          <Text style={styles.subtitle}>AI-Powered Property Intelligence</Text>
         </View>
-      </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>FieldMind v1.0</Text>
-        <Text style={styles.footerText}>AI-Powered Property Intelligence</Text>
-      </View>
+        {/* PIN Entry */}
+        <View style={styles.pinSection}>
+          <Text style={styles.pinLabel}>Enter your 8-digit PIN</Text>
+
+          {/* Dot indicators */}
+          <TouchableOpacity
+            style={styles.dotsContainer}
+            onPress={() => inputRef.current?.focus()}
+            activeOpacity={1}
+          >
+            {Array.from({ length: 8 }).map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.dot,
+                  i < pin.length ? styles.dotFilled : styles.dotEmpty,
+                  i === pin.length && !isLoading ? styles.dotActive : null,
+                ]}
+              />
+            ))}
+          </TouchableOpacity>
+
+          {/* Hidden input to capture keystrokes */}
+          <TextInput
+            ref={inputRef}
+            style={styles.hiddenInput}
+            value={pin}
+            onChangeText={handlePinChange}
+            keyboardType="number-pad"
+            maxLength={8}
+            autoFocus
+            editable={!isLoading}
+            caretHidden
+          />
+
+          {isLoading && (
+            <ActivityIndicator size="large" color="#2563eb" style={styles.spinner} />
+          )}
+
+          {!isLoading && pin.length > 0 && (
+            <TouchableOpacity onPress={() => setPin('')} style={styles.clearButton}>
+              <Text style={styles.clearButtonText}>Clear</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ForgotPin')}
+            style={styles.forgotPinLink}
+          >
+            <Text style={styles.forgotPinText}>Forgot your PIN?</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Dev quick-login */}
+        {__DEV__ && (
+          <View style={styles.devSection}>
+            <Text style={styles.devTitle}>Dev Quick Login</Text>
+            <View style={styles.devButtons}>
+              <TouchableOpacity
+                style={styles.devButton}
+                onPress={() => handleQuickLogin('12345678')}
+                disabled={isLoading}
+              >
+                <Text style={styles.devButtonText}>Admin</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.devButton}
+                onPress={() => handleQuickLogin('87654321')}
+                disabled={isLoading}
+              >
+                <Text style={styles.devButtonText}>PM</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.devButton}
+                onPress={() => handleQuickLogin('11223344')}
+                disabled={isLoading}
+              >
+                <Text style={styles.devButtonText}>Tech</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -150,6 +157,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
+  scroll: {
+    flexGrow: 1,
+  },
   header: {
     alignItems: 'center',
     paddingTop: Platform.OS === 'ios' ? 80 : 60,
@@ -157,8 +167,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#2563eb',
   },
   logo: {
-    fontSize: 64,
-    marginBottom: 16,
+    fontSize: 48,
+    fontWeight: '900',
+    color: '#fff',
+    marginBottom: 8,
+    letterSpacing: 2,
   },
   title: {
     fontSize: 32,
@@ -167,84 +180,99 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#dbeafe',
   },
-  form: {
+  pinSection: {
     flex: 1,
-    padding: 24,
+    alignItems: 'center',
+    paddingTop: 56,
+    paddingHorizontal: 24,
   },
-  label: {
-    fontSize: 14,
+  pinLabel: {
+    fontSize: 18,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 8,
-    marginTop: 16,
+    marginBottom: 32,
   },
-  input: {
-    backgroundColor: '#fff',
+  dotsContainer: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 32,
+  },
+  dot: {
+    width: 24,
+    height: 24,
     borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: '#1f2937',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
   },
-  loginButton: {
+  dotEmpty: {
+    backgroundColor: '#e5e7eb',
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+  },
+  dotFilled: {
     backgroundColor: '#2563eb',
-    borderRadius: 12,
-    padding: 18,
-    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#2563eb',
+  },
+  dotActive: {
+    borderColor: '#2563eb',
+    borderWidth: 2,
+    backgroundColor: '#eff6ff',
+  },
+  hiddenInput: {
+    position: 'absolute',
+    opacity: 0,
+    height: 0,
+    width: 0,
+  },
+  spinner: {
+    marginTop: 8,
+  },
+  clearButton: {
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 24,
+  },
+  clearButtonText: {
+    color: '#6b7280',
+    fontSize: 15,
+  },
+  forgotPinLink: {
     marginTop: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingVertical: 8,
   },
-  loginButtonDisabled: {
-    backgroundColor: '#93c5fd',
+  forgotPinText: {
+    color: '#2563eb',
+    fontSize: 15,
   },
-  loginButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  quickLoginSection: {
-    marginTop: 40,
-    paddingTop: 24,
+  devSection: {
+    marginTop: 48,
+    marginHorizontal: 24,
+    paddingTop: 20,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
+    alignItems: 'center',
   },
-  quickLoginTitle: {
+  devTitle: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#9ca3af',
     marginBottom: 12,
-    textAlign: 'center',
   },
-  quickLoginButtons: {
+  devButtons: {
     flexDirection: 'row',
-    justifyContent: 'center',
     gap: 12,
+    marginBottom: 32,
   },
-  quickLoginButton: {
+  devButton: {
     backgroundColor: '#10b981',
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 8,
   },
-  quickLoginButtonText: {
+  devButtonText: {
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
-  },
-  footer: {
-    padding: 24,
-    alignItems: 'center',
-  },
-  footerText: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginVertical: 2,
   },
 });

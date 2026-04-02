@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ActivityIndicator, View, Text } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import offlineService from '../services/offline.service';
@@ -12,11 +12,18 @@ import PhotosScreen from '../screens/PhotosScreen';
 import ProjectsScreen from '../screens/ProjectsScreen';
 import UploadScreen from '../screens/UploadScreen';
 import TimeClockScreen from '../screens/TimeClockScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-function MainTabs({ onLogout, pendingUploads }: { onLogout: () => void; pendingUploads: number }) {
+function MainTabs({
+  onLogout,
+  pendingUploads,
+}: {
+  onLogout: () => void;
+  pendingUploads: number;
+}) {
   return (
     <Tab.Navigator
       screenOptions={{
@@ -46,6 +53,12 @@ function MainTabs({ onLogout, pendingUploads }: { onLogout: () => void; pendingU
           title: 'Upload',
           tabBarBadge: pendingUploads > 0 ? pendingUploads : undefined,
         }}
+      />
+      <Tab.Screen
+        name="Photos"
+        component={PhotosScreen}
+        options={{ title: 'Photos' }}
+        initialParams={{ title: 'All Photos' }}
       />
     </Tab.Navigator>
   );
@@ -78,9 +91,7 @@ export default function AppNavigator() {
     }
   };
 
-  const handleLoginSuccess = () => {
-    setIsAuthenticated(true);
-  };
+  const handleLoginSuccess = () => setIsAuthenticated(true);
 
   const handleLogout = async () => {
     await SecureStore.deleteItemAsync('accessToken');
@@ -101,9 +112,7 @@ export default function AppNavigator() {
       {!isAuthenticated ? (
         <>
           <Stack.Screen name="Login">
-            {(props) => (
-              <LoginScreen {...props} onLoginSuccess={handleLoginSuccess} />
-            )}
+            {(props) => <LoginScreen {...props} onLoginSuccess={handleLoginSuccess} />}
           </Stack.Screen>
           <Stack.Screen
             name="ForgotPin"
@@ -114,7 +123,9 @@ export default function AppNavigator() {
       ) : (
         <>
           <Stack.Screen name="Main">
-            {(props) => <MainTabs {...props} onLogout={handleLogout} pendingUploads={pendingUploads} />}
+            {(props) => (
+              <MainTabs {...props} onLogout={handleLogout} pendingUploads={pendingUploads} />
+            )}
           </Stack.Screen>
           <Stack.Screen
             name="QuickCapture"
@@ -126,6 +137,12 @@ export default function AppNavigator() {
             component={PhotosScreen}
             options={{ headerShown: true, title: 'Photos' }}
           />
+          <Stack.Screen
+            name="Profile"
+            options={{ headerShown: true, title: 'My Profile' }}
+          >
+            {(props) => <ProfileScreen {...props} onLogout={handleLogout} />}
+          </Stack.Screen>
         </>
       )}
     </Stack.Navigator>

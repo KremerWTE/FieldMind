@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { clearAuthCookie } from '@/lib/auth-cookie';
 
 const mainNav = [
   { href: '/dashboard',  label: 'Dashboard',  icon: '▤' },
@@ -24,6 +25,7 @@ const timeNav = [
 const adminNav = [
   { href: '/admin/payroll',         label: 'Payroll Review', icon: '💰' },
   { href: '/admin/payroll/history', label: 'Payroll History', icon: '📊' },
+  { href: '/admin/settings',        label: 'Team Settings',  icon: '⚙️' },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -43,6 +45,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('user');
+    clearAuthCookie();
     router.push('/login');
   };
 

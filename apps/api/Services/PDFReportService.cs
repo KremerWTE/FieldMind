@@ -71,6 +71,176 @@ public class PDFReportService
         return document.GeneratePdf();
     }
 
+    public async Task<byte[]> GenerateProjectReport(
+        string projectId,
+        DateTime? dateFrom = null,
+        DateTime? dateTo = null,
+        bool includeAI = true)
+    {
+        var project = await _context.Projects
+            .Include(p => p.Building)
+            .Include(p => p.Photos.Where(ph =>
+                (!dateFrom.HasValue || ph.UploadedAt >= dateFrom) &&
+                (!dateTo.HasValue || ph.UploadedAt <= dateTo)))
+            .ThenInclude(ph => ph.AiAnnotations.OrderByDescending(a => a.Version).Take(1))
+            .FirstOrDefaultAsync(p => p.Id == projectId);
+
+        if (project == null)
+            throw new InvalidOperationException("Project not found");
+
+        var maintenanceEvents = await _context.MaintenanceEvents
+            .Where(me => me.BuildingId == project.BuildingId)
+            .ToListAsync();
+
+        var document = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.Letter);
+                page.Margin(50);
+                page.DefaultTextStyle(x => x.FontSize(11));
+                page.Header().Element(c => ComposeProjectHeader(c, project, dateFrom, dateTo));
+                page.Content().Element(c => ComposeProjectContent(c, project, maintenanceEvents, includeAI));
+                page.Footer().AlignCenter().Text(text =>
+                {
+                    text.CurrentPageNumber();
+                    text.Span(" / ");
+                    text.TotalPages();
+                });
+            });
+        });
+
+        return document.GeneratePdf();
+    }
+
+    public async Task<byte[]> GenerateFolderReport(
+        string folderId,
+        DateTime? dateFrom = null,
+        DateTime? dateTo = null,
+        bool includeAI = true)
+    {
+        var folder = await _context.Folders
+            .Include(f => f.Project).ThenInclude(p => p.Building)
+            .Include(f => f.Photos.Where(ph =>
+                (!dateFrom.HasValue || ph.UploadedAt >= dateFrom) &&
+                (!dateTo.HasValue || ph.UploadedAt <= dateTo)))
+            .ThenInclude(ph => ph.AiAnnotations.OrderByDescending(a => a.Version).Take(1))
+            .FirstOrDefaultAsync(f => f.Id == folderId);
+
+        if (folder == null)
+            throw new InvalidOperationException("Folder not found");
+
+        var document = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.Letter);
+                page.Margin(50);
+                page.DefaultTextStyle(x => x.FontSize(11));
+                page.Header().Element(c => ComposeFolderHeader(c, folder, dateFrom, dateTo));
+                page.Content().Element(c => ComposePhotos(c, folder.Photos.ToList(), includeAI));
+                page.Footer().AlignCenter().Text(text =>
+                {
+                    text.CurrentPageNumber();
+                    text.Span(" / ");
+                    text.TotalPages();
+                });
+            });
+        });
+
+        return document.GeneratePdf();
+    }
+
+    private void ComposeProjectHeader(IContainer container, Project project, DateTime? dateFrom, DateTime? dateTo)
+    {
+        container.Column(column =>
+        {
+            column.Item().PaddingBottom(10).BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Row(row =>
+            {
+                row.RelativeItem().Column(c =>
+                {
+                    c.Item().Text("FieldMind Project Report").FontSize(20).Bold();
+                    c.Item().Text(project.Name).FontSize(16);
+                    c.Item().Text(project.Building?.Name ?? "").FontSize(10).FontColor(Colors.Grey.Darken1);
+                });
+                row.ConstantItem(100).AlignRight().Column(c =>
+                {
+                    c.Item().Text(DateTime.UtcNow.ToString("MM/dd/yyyy")).FontSize(10);
+                    c.Item().Text($"Status: {project.Status}").FontSize(9).FontColor(Colors.Grey.Darken1);
+                });
+            });
+        });
+    }
+
+    private void ComposeFolderHeader(IContainer container, Folder folder, DateTime? dateFrom, DateTime? dateTo)
+    {
+        container.Column(column =>
+        {
+            column.Item().PaddingBottom(10).BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Row(row =>
+            {
+                row.RelativeItem().Column(c =>
+                {
+                    c.Item().Text("FieldMind Folder Report").FontSize(20).Bold();
+                    c.Item().Text(folder.Name).FontSize(16);
+                    c.Item().Text(folder.Project?.Building?.Name ?? folder.Project?.Name ?? "").FontSize(10).FontColor(Colors.Grey.Darken1);
+                });
+                row.ConstantItem(100).AlignRight().Column(c =>
+                {
+                    c.Item().Text(DateTime.UtcNow.ToString("MM/dd/yyyy")).FontSize(10);
+                });
+            });
+        });
+    }
+
+    private void ComposeProjectContent(IContainer container, Project project, List<MaintenanceEvent> events, bool includeAI)
+    {
+        container.Column(column =>
+        {
+            column.Spacing(15);
+
+            // Summary
+            column.Item().Column(c =>
+            {
+                c.Item().Text("Project Summary").FontSize(16).Bold();
+                c.Item().PaddingVertical(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+                c.Item().PaddingVertical(5).Row(r =>
+                {
+                    r.RelativeItem().Text("Project:").Bold();
+                    r.RelativeItem().Text(project.Name);
+                });
+                c.Item().PaddingVertical(5).Row(r =>
+                {
+                    r.RelativeItem().Text("Building:").Bold();
+                    r.RelativeItem().Text(project.Building?.Name ?? "N/A");
+                });
+                c.Item().PaddingVertical(5).Row(r =>
+                {
+                    r.RelativeItem().Text("Status:").Bold();
+                    r.RelativeItem().Text(project.Status.ToString());
+                });
+                c.Item().PaddingVertical(5).Row(r =>
+                {
+                    r.RelativeItem().Text("Photos:").Bold();
+                    r.RelativeItem().Text(project.Photos.Count.ToString());
+                });
+            });
+
+            // Maintenance events for this building
+            if (events.Any())
+            {
+                column.Item().PageBreak();
+                column.Item().Element(c => ComposeMaintenanceEvents(c, events));
+            }
+
+            // Photos
+            if (project.Photos.Any())
+            {
+                column.Item().PageBreak();
+                column.Item().Element(c => ComposePhotos(c, project.Photos.ToList(), includeAI));
+            }
+        });
+    }
+
     private void ComposeHeader(IContainer container, Building building, DateTime? dateFrom, DateTime? dateTo)
     {
         container.Column(column =>

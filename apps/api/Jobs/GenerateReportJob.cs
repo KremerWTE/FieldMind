@@ -63,9 +63,20 @@ public class GenerateReportJob
                     break;
 
                 case ReportType.Project:
+                    pdfBytes = await pdfService.GenerateProjectReport(
+                        reportJob.EntityId,
+                        reportJob.DateFrom,
+                        reportJob.DateTo,
+                        reportJob.IncludeAI);
+                    break;
+
                 case ReportType.Folder:
-                    // TODO: Implement project/folder reports
-                    throw new NotImplementedException($"Report type {reportJob.Type} not yet implemented");
+                    pdfBytes = await pdfService.GenerateFolderReport(
+                        reportJob.EntityId,
+                        reportJob.DateFrom,
+                        reportJob.DateTo,
+                        reportJob.IncludeAI);
+                    break;
 
                 default:
                     throw new InvalidOperationException($"Unknown report type: {reportJob.Type}");

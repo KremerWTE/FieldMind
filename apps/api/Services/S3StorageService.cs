@@ -69,6 +69,16 @@ public class S3StorageService
         return await Task.Run(() => _s3Client.GetPreSignedURL(request));
     }
 
+    public async Task DeleteObject(string key)
+    {
+        var request = new DeleteObjectRequest
+        {
+            BucketName = _bucketName,
+            Key = key,
+        };
+        await _s3Client.DeleteObjectAsync(request);
+    }
+
     public string GetPublicUrl(string key)
     {
         return $"https://{_bucketName}.s3.amazonaws.com/{key}";

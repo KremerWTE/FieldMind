@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { setAuthCookie } from '@/lib/auth-cookie';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -74,6 +75,7 @@ export default function RegisterPage() {
 
       localStorage.setItem('accessToken', data.accessToken);
       localStorage.setItem('user', JSON.stringify(data.user));
+      setAuthCookie();
       router.push('/dashboard');
     } catch {
       setError('Network error. Check that the API is running.');

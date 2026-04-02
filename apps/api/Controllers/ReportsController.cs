@@ -15,11 +15,13 @@ namespace FieldMind.Api.Controllers;
 public class ReportsController : ControllerBase
 {
     private readonly FieldMindDbContext _context;
+    private readonly S3StorageService _s3Service;
     private readonly ILogger<ReportsController> _logger;
 
-    public ReportsController(FieldMindDbContext context, ILogger<ReportsController> logger)
+    public ReportsController(FieldMindDbContext context, S3StorageService s3Service, ILogger<ReportsController> logger)
     {
         _context = context;
+        _s3Service = s3Service;
         _logger = logger;
     }
 
@@ -172,7 +174,11 @@ public class ReportsController : ControllerBase
             _context.ReportJobs.Remove(reportJob);
             await _context.SaveChangesAsync();
 
-            // TODO: Also delete from S3
+            if (!string.IsNullOrEmpty(reportJob.S3Key))
+            {
+                try { await _s3Service.DeleteObject(reportJob.S3Key); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete report from S3: {Key}", reportJob.S3Key); }
+            }
 
             return Ok(new { message = "Report deleted successfully" });
         }

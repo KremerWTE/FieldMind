@@ -152,7 +152,14 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Auto-migrate and seed database in development
+// Run EF migrations on startup (always — safe to run on already-migrated DB)
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<FieldMindDbContext>();
+    await db.Database.MigrateAsync();
+}
+
+// Seed database in development
 if (app.Environment.IsDevelopment())
 {
     await app.UseDatabaseSeeding();

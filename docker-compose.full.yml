@@ -28,15 +28,17 @@ services:
       Twilio__AccountSid: ${TWILIO_ACCOUNT_SID:-}
       Twilio__AuthToken: ${TWILIO_AUTH_TOKEN:-}
       Twilio__FromNumber: ${TWILIO_FROM_NUMBER:-}
-      OpenAI__ApiKey: ${OPENAI_API_KEY:-}
+      AI__Provider: ${AI_PROVIDER:-openai}
+      AI__OpenAI__ApiKey: ${OPENAI_API_KEY:-}
+      AI__OpenAI__Model: gpt-4o
       Serilog__SeqUrl: http://seq:5341
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health/live"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 20s
+      start_period: 30s

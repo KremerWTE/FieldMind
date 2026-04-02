@@ -249,10 +249,20 @@ export default function JobSiteSelectScreen({ navigation }: any) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Select Job Site</Text>
-        <Text style={styles.headerSubtitle}>
-          {currentLocation ? '📍 Using your location' : 'Showing all sites'}
-        </Text>
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.headerTitle}>Select Job Site</Text>
+            <Text style={styles.headerSubtitle}>
+              {currentLocation ? '📍 Using your location' : 'Showing all sites'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('Profile')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.headerProfileBtn}>👤</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search */}
@@ -407,6 +417,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#2563eb',
     padding: 16,
     paddingTop: Platform.OS === 'ios' ? 50 : 16,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerProfileBtn: {
+    fontSize: 24,
+    color: '#fff',
   },
   headerTitle: {
     fontSize: 28,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import offlineService from '../services/offline.service';
@@ -18,17 +18,30 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function MainTabs({
+  navigation,
   onLogout,
   pendingUploads,
 }: {
+  navigation: any;
   onLogout: () => void;
   pendingUploads: number;
 }) {
+  const ProfileButton = () => (
+    <TouchableOpacity
+      onPress={() => navigation.navigate('Profile')}
+      style={styles.profileBtn}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+    >
+      <Text style={styles.profileBtnText}>👤</Text>
+    </TouchableOpacity>
+  );
+
   return (
     <Tab.Navigator
       screenOptions={{
         tabBarActiveTintColor: '#2563eb',
         tabBarInactiveTintColor: '#6b7280',
+        headerRight: () => <ProfileButton />,
       }}
     >
       <Tab.Screen
@@ -148,3 +161,12 @@ export default function AppNavigator() {
     </Stack.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  profileBtn: {
+    marginRight: 16,
+  },
+  profileBtnText: {
+    fontSize: 22,
+  },
+});

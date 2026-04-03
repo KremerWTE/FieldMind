@@ -1,8 +1,8 @@
 # FieldMind Master TODO & Project Roadmap
 
 **Project:** FieldMind - AI-Powered Property Intelligence Platform
-**Version:** 1.3
-**Last Updated:** April 2, 2026
+**Version:** 1.4
+**Last Updated:** April 3, 2026
 **Overall Status:** 🎉 **FEATURE-COMPLETE — Production Deployment Next**
 
 ---
@@ -30,12 +30,14 @@ All phases through the web dashboard are 100% complete. See previous session not
 ---
 
 ### ✅ Phase 10a: Production Infrastructure (COMPLETE)
-**Completed:** April 2, 2026
+**Completed:** April 2–3, 2026
 
 - [x] GitHub Actions CI workflow (`.github/workflows/ci.yml`)
-  - API build + test with real TimescaleDB service
-  - Next.js build with `NEXT_IGNORE_INCORRECT_LOCKFILE=1`
-  - Docker image build on push
+  - API: `dotnet test` (restore + build + test, EF InMemory — no DB service needed)
+  - Web: `npm install --ignore-scripts` + `npm run build -w @fieldmind/web`
+  - Docker: image build on push, gated on API passing
+  - Fixed: missing `using FieldMind.Api.Services` in ReportsController (CS0246)
+  - Fixed: `npm ci` → `npm install` to tolerate lockfile drift from mobile package additions
 - [x] Auto-migration on API startup (`db.Database.MigrateAsync()` in Program.cs)
 - [x] Fixed docker-compose.full.yml healthcheck (curl→wget, /health/live)
 - [x] Fixed docker-compose.full.yml AI env var key (AI__OpenAI__ApiKey)
@@ -207,6 +209,6 @@ All code is written. This phase is entirely manual cloud/infra setup.
 
 ---
 
-**Last Updated:** April 2, 2026
+**Last Updated:** April 3, 2026
 **Next Review:** After production deployment
-**Status:** ✅ **FEATURE-COMPLETE — PRODUCTION DEPLOYMENT IS THE ONLY REMAINING WORK**
+**Status:** ✅ **FEATURE-COMPLETE — CI GREEN — PRODUCTION DEPLOYMENT IS THE ONLY REMAINING WORK**

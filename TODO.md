@@ -1,7 +1,7 @@
 # FieldMind TODO — Current Status
 
-**Last Updated:** April 2, 2026
-**Status:** Feature-Complete — Production Deployment Next
+**Last Updated:** April 3, 2026
+**Status:** Feature-Complete + CI Green — Production Deployment Next
 
 ---
 
@@ -80,7 +80,7 @@
   - [x] Full-stack Docker Compose — `docker-compose.full.yml` (includes API)
   - [x] API Dockerfile (multi-stage, non-root user)
   - [x] Auto-migration on startup (`MigrateAsync()` in Program.cs)
-  - [x] GitHub Actions CI: API build+test (TimescaleDB service), Next.js build, Docker build
+  - [x] GitHub Actions CI: API build+test (EF InMemory), Next.js build, Docker build on push
   - [x] `.env.example` with all required variables documented
 
 ### Mobile App (React Native / Expo)

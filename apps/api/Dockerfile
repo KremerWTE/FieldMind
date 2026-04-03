@@ -13,8 +13,8 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS runtime
 WORKDIR /app
 
 # Create non-root user
-RUN addgroup --system --gid 1001 fieldmind && \
-    adduser --system --uid 1001 --ingroup fieldmind fieldmind
+RUN groupadd --system --gid 1001 fieldmind && \
+    useradd --system --uid 1001 --gid fieldmind fieldmind
 
 COPY --from=build /app/publish .
 

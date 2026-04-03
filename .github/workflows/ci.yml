@@ -43,9 +43,11 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
+        # npm install instead of npm ci: tolerates lockfile drift from
+        # new packages added to apps/mobile without re-generating the root lockfile.
         # --ignore-scripts skips Expo/React Native native postinstall scripts
-        # that fail on Linux CI (not needed for the web build)
-        run: npm ci --ignore-scripts
+        # that fail on Linux CI (not needed for the Next.js build).
+        run: npm install --ignore-scripts
 
       - name: Build web
         run: npm run build -w @fieldmind/web

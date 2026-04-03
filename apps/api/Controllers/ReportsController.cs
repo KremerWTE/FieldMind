@@ -5,6 +5,7 @@ using Hangfire;
 using FieldMind.Api.Data;
 using FieldMind.Api.Models;
 using FieldMind.Api.Jobs;
+using FieldMind.Api.Services;
 using System.Security.Claims;
 
 namespace FieldMind.Api.Controllers;

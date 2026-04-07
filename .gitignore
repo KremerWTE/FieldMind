@@ -143,3 +143,4 @@ tmp/
 apps/api/fieldmind.db
 apps/api/fieldmind.db-shm
 apps/api/fieldmind.db-wal
+.claude/settings.local.json

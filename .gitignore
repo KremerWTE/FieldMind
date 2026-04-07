@@ -140,3 +140,6 @@ temp/
 tmp/
 *.bak
 *.tmp
+apps/api/fieldmind.db
+apps/api/fieldmind.db-shm
+apps/api/fieldmind.db-wal

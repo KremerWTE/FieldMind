@@ -8,7 +8,7 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<FieldMindD
     public FieldMindDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<FieldMindDbContext>();
-        optionsBuilder.UseNpgsql("Host=localhost;Port=5432;Database=fieldmind;Username=postgres;Password=postgres");
+        optionsBuilder.UseSqlite("Data Source=fieldmind.db");
 
         return new FieldMindDbContext(optionsBuilder.Options);
     }

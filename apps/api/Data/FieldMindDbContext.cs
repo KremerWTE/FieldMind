@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using FieldMind.Api.Models;
 
 namespace FieldMind.Api.Data;
@@ -149,11 +151,18 @@ public class FieldMindDbContext : DbContext
         });
 
         // AiAnnotation
+        var stringArrayConverter = new ValueConverter<string[], string>(
+            v => JsonSerializer.Serialize(v, (JsonSerializerOptions?)null),
+            v => JsonSerializer.Deserialize<string[]>(v, (JsonSerializerOptions?)null) ?? Array.Empty<string>());
+
         modelBuilder.Entity<AiAnnotation>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.PhotoId);
             entity.HasIndex(e => e.SeverityScore);
+
+            entity.Property(e => e.Tags).HasConversion(stringArrayConverter);
+            entity.Property(e => e.Categories).HasConversion(stringArrayConverter);
 
             entity.HasOne(e => e.Photo)
                 .WithMany(p => p.AiAnnotations)

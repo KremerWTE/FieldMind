@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Hangfire;
-using Hangfire.PostgreSql;
+using Hangfire.InMemory;
 using FieldMind.Api.Data;
 using FieldMind.Api.Services;
 using FieldMind.Api.Services.AI;
@@ -43,7 +43,7 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 
 // Database
 builder.Services.AddDbContext<FieldMindDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Authentication & JWT
 var jwtSecret = builder.Configuration["JWT:Secret"] ?? throw new InvalidOperationException("JWT Secret not configured");
@@ -128,10 +128,7 @@ builder.Services.AddHostedService<AlertEvaluationService>();
 // Hangfire
 builder.Services.AddHangfire(config =>
 {
-    config.UsePostgreSqlStorage(options =>
-    {
-        options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("DefaultConnection"));
-    });
+    config.UseInMemoryStorage();
 });
 builder.Services.AddHangfireServer();
 
@@ -144,15 +141,10 @@ builder.Services.AddControllers()
 
 // Health Checks
 builder.Services.AddHealthChecks()
-    .AddNpgSql(
-        builder.Configuration.GetConnectionString("DefaultConnection")!,
-        name: "database",
-        tags: new[] { "ready" })
     .AddCheck<HangfireHealthCheck>("hangfire", tags: new[] { "ready" });
 
-// Swagger/OpenAPI
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+// OpenAPI
+builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
@@ -172,12 +164,7 @@ if (app.Environment.IsDevelopment())
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "FieldMind API V1");
-        c.RoutePrefix = "api-docs";
-    });
+    app.MapOpenApi();
 }
 
 app.UseCors("AllowFrontend");
@@ -232,7 +219,7 @@ app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthC
 });
 
 Console.WriteLine("🚀 FieldMind API (.NET 10) running");
-Console.WriteLine($"📚 API Documentation: {app.Urls.FirstOrDefault()}/api-docs");
+Console.WriteLine($"📚 API Documentation: {app.Urls.FirstOrDefault()}/openapi/v1.json");
 if (app.Environment.IsDevelopment())
 {
     Console.WriteLine($"🔧 Hangfire Dashboard: {app.Urls.FirstOrDefault()}/hangfire");

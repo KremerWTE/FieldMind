@@ -610,89 +610,9 @@ public class DbSeeder
         return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 
-    private async Task SeedAlertRules()
+    private Task SeedAlertRules()
     {
-        try
-        {
-            // Check if alert rules already exist
-            var existingRules = await _context.Database
-                .SqlQueryRaw<int>("SELECT COUNT(*)::int as Value FROM monitoring.alert_rules")
-                .FirstOrDefaultAsync();
-
-            if (existingRules > 0)
-            {
-                _logger.LogInformation("Alert rules already exist. Skipping...");
-                return;
-            }
-
-            // Insert pre-configured alert rules
-            await _context.Database.ExecuteSqlRawAsync(@"
-                INSERT INTO monitoring.alert_rules
-                (id, name, description, enabled, severity, query, threshold, notification_channels, throttle_minutes)
-                VALUES
-                (
-                    'high-error-rate',
-                    'High API Error Rate',
-                    'API error rate exceeds 5% in last 5 minutes',
-                    true,
-                    'critical',
-                    'SELECT COALESCE(CAST(COUNT(*) FILTER (WHERE status_code >= 500) AS FLOAT) / NULLIF(COUNT(*), 0) * 100, 0) FROM monitoring.api_metrics WHERE time > NOW() - INTERVAL ''5 minutes''',
-                    5.0,
-                    ARRAY['email'],
-                    15
-                ),
-                (
-                    'slow-api-response',
-                    'Slow API Response Time',
-                    'P95 API response time exceeds 2 seconds',
-                    true,
-                    'warning',
-                    'SELECT COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms), 0) FROM monitoring.api_metrics WHERE time > NOW() - INTERVAL ''10 minutes''',
-                    2000.0,
-                    ARRAY['email'],
-                    30
-                ),
-                (
-                    'high-queue-depth',
-                    'High Hangfire Queue Depth',
-                    'More than 100 jobs in queue',
-                    true,
-                    'warning',
-                    'SELECT COALESCE(COUNT(*)::float, 0) FROM hangfire.job WHERE state_name IN (''Enqueued'', ''Scheduled'')',
-                    100.0,
-                    ARRAY['email'],
-                    15
-                ),
-                (
-                    'critical-errors',
-                    'Critical Errors from Web/Mobile',
-                    'Critical or fatal errors reported in last 5 minutes',
-                    true,
-                    'critical',
-                    'SELECT COALESCE(COUNT(*)::float, 0) FROM monitoring.error_logs WHERE severity IN (''critical'', ''fatal'') AND occurred_at > NOW() - INTERVAL ''5 minutes''',
-                    0.5,
-                    ARRAY['email'],
-                    15
-                ),
-                (
-                    'failed-jobs',
-                    'Failed Background Jobs',
-                    'More than 5 failed jobs in queue',
-                    true,
-                    'warning',
-                    'SELECT COALESCE(COUNT(*)::float, 0) FROM hangfire.job WHERE state_name = ''Failed''',
-                    5.0,
-                    ARRAY['email'],
-                    30
-                )
-            ");
-
-            _logger.LogInformation("✅ Alert rules seeded successfully!");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to seed alert rules");
-            // Don't throw - continue with other seeding
-        }
+        // Monitoring tables not used in SQLite mode
+        return Task.CompletedTask;
     }
 }

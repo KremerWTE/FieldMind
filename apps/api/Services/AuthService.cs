@@ -128,7 +128,7 @@ public class AuthService
                 new Claim(ClaimTypes.Role, user.Role.ToString()),
                 new Claim("teamId", user.TeamId)
             }),
-            Expires = DateTime.UtcNow.AddMinutes(15),
+            Expires = DateTime.UtcNow.AddHours(8),
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
 

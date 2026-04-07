@@ -25,6 +25,7 @@ const timeNav = [
 const adminNav = [
   { href: '/admin/payroll',         label: 'Payroll Review', icon: '💰' },
   { href: '/admin/payroll/history', label: 'Payroll History', icon: '📊' },
+  { href: '/receipts',              label: 'Receipts',        icon: '🧾' },
   { href: '/admin/settings',        label: 'Team Settings',  icon: '⚙️' },
 ];
 

@@ -28,6 +28,7 @@ public class FieldMindDbContext : DbContext
     public DbSet<ReportJob> ReportJobs => Set<ReportJob>();
     public DbSet<TimeEntry> TimeEntries => Set<TimeEntry>();
     public DbSet<PayrollPeriod> PayrollPeriods => Set<PayrollPeriod>();
+    public DbSet<Receipt> Receipts => Set<Receipt>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -281,6 +282,26 @@ public class FieldMindDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.Ignore(e => e.DurationHours);
+        });
+
+        // Receipt
+        modelBuilder.Entity<Receipt>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TeamId);
+            entity.HasIndex(e => e.UploadedById);
+            entity.HasIndex(e => e.CreatedAt);
+            entity.Property(e => e.Amount).HasColumnType("TEXT"); // SQLite decimal storage
+
+            entity.HasOne(e => e.Team)
+                .WithMany()
+                .HasForeignKey(e => e.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.UploadedBy)
+                .WithMany()
+                .HasForeignKey(e => e.UploadedById)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // PayrollPeriod

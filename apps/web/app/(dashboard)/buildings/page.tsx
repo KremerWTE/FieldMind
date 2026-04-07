@@ -42,8 +42,8 @@ export default function BuildingsPage() {
       );
       if (res.ok) {
         const data = await res.json();
-        setBuildings(Array.isArray(data) ? data : data.buildings ?? []);
-        setTotal(data.totalCount ?? (Array.isArray(data) ? data.length : 0));
+        setBuildings(Array.isArray(data) ? data : data.data ?? data.buildings ?? []);
+        setTotal(data.meta?.total ?? data.totalCount ?? (Array.isArray(data) ? data.length : 0));
       }
     } finally {
       setLoading(false);

@@ -253,18 +253,22 @@ export default function TimeReportsPage() {
                                   <th className="text-left pr-4 py-1">Clock In</th>
                                   <th className="text-left pr-4 py-1">Clock Out</th>
                                   <th className="text-left pr-4 py-1">Hours</th>
+                                  <th className="text-left pr-4 py-1">OT</th>
                                   <th className="text-left py-1">Location</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-200">
                                 {s.entries.map((e: any) => (
-                                  <tr key={e.id}>
+                                  <tr key={e.id} className={e.isOvertime ? 'bg-orange-50' : ''}>
                                     <td className="pr-4 py-1 text-gray-900">{format(new Date(e.clockIn), 'MMM d')}</td>
                                     <td className="pr-4 py-1 text-gray-900">{format(new Date(e.clockIn), 'h:mm a')}</td>
                                     <td className="pr-4 py-1 text-gray-900">
                                       {e.clockOut ? format(new Date(e.clockOut), 'h:mm a') : '—'}
                                     </td>
                                     <td className="pr-4 py-1 text-gray-900">{e.durationHours ?? '—'}h</td>
+                                    <td className="pr-4 py-1">
+                                      {e.isOvertime ? <span className="px-1 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700">OT</span> : '—'}
+                                    </td>
                                     <td className="py-1 text-gray-600 truncate max-w-xs">{e.location}</td>
                                   </tr>
                                 ))}
@@ -289,7 +293,7 @@ export default function TimeReportsPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  {['Employee', 'Date', 'Clock In', 'Clock Out', 'Hours', 'Location', 'Notes'].map((h) => (
+                  {['Employee', 'Date', 'Clock In', 'Clock Out', 'Hours', 'OT', 'Location', 'Notes'].map((h) => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       {h}
                     </th>
@@ -298,7 +302,7 @@ export default function TimeReportsPage() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {allEntries.map((e: any) => (
-                  <tr key={e.id} className={!e.clockOut ? 'bg-green-50' : 'hover:bg-gray-50'}>
+                  <tr key={e.id} className={e.isOvertime ? 'bg-orange-50 hover:bg-orange-100' : !e.clockOut ? 'bg-green-50' : 'hover:bg-gray-50'}>
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">{e.fullName}</td>
                     <td className="px-4 py-3 text-sm text-gray-900">{format(new Date(e.clockIn), 'MMM d, yyyy')}</td>
                     <td className="px-4 py-3 text-sm text-gray-900">{format(new Date(e.clockIn), 'h:mm a')}</td>
@@ -306,6 +310,9 @@ export default function TimeReportsPage() {
                       {e.clockOut ? format(new Date(e.clockOut), 'h:mm a') : <span className="text-green-600 font-medium">Active</span>}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900">{e.durationHours != null ? `${e.durationHours}h` : '—'}</td>
+                    <td className="px-4 py-3 text-sm">
+                      {e.isOvertime ? <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700">OT</span> : '—'}
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-600 truncate max-w-xs">{e.location}</td>
                     <td className="px-4 py-3 text-sm text-gray-500 truncate max-w-xs">{e.notes ?? '—'}</td>
                   </tr>

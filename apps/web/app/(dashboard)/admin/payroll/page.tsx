@@ -532,6 +532,9 @@ export default function AdminPayrollPage() {
                                 </td>
                                 <td className="py-2 pr-4 font-semibold text-gray-900">
                                   {e.durationHours != null ? `${e.durationHours}h` : '—'}
+                                  {e.isOvertime && (
+                                    <span className="ml-1.5 px-1 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-700">OT</span>
+                                  )}
                                 </td>
                                 <td className="py-2 pr-4 text-gray-600 max-w-[180px] truncate">{e.location}</td>
                                 <td className="py-2 pr-4 text-gray-500 max-w-[140px] truncate">{e.notes ?? '—'}</td>

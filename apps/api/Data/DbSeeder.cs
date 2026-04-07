@@ -30,21 +30,21 @@ public class DbSeeder
                 return;
             }
 
-            // 1. Create Team
+            // 1. Create Team — fixed ID so tokens survive restarts
             var team = new Team
             {
-                Id = Guid.NewGuid().ToString(),
+                Id = "00000000-0000-0000-0000-000000000001",
                 Name = "Prop-Trax Demo",
                 Slug = "prop-trax-demo",
                 CreatedAt = DateTime.UtcNow
             };
             _context.Teams.Add(team);
 
-            // 2. Create Users
+            // 2. Create Users — fixed IDs so tokens survive restarts
             // Seed PINs: Admin=12345678, PM=87654321, Tech=11223344
             var adminUser = new User
             {
-                Id = Guid.NewGuid().ToString(),
+                Id = "00000000-0000-0000-0000-000000000010",
                 Email = "admin@fieldmind.io",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"),
                 Pin = HashPin("12345678"),
@@ -58,7 +58,7 @@ public class DbSeeder
 
             var pmUser = new User
             {
-                Id = Guid.NewGuid().ToString(),
+                Id = "00000000-0000-0000-0000-000000000011",
                 Email = "pm@fieldmind.io",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"),
                 Pin = HashPin("87654321"),
@@ -72,7 +72,7 @@ public class DbSeeder
 
             var fieldTech = new User
             {
-                Id = Guid.NewGuid().ToString(),
+                Id = "00000000-0000-0000-0000-000000000012",
                 Email = "tech@fieldmind.io",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"),
                 Pin = HashPin("11223344"),
@@ -84,7 +84,15 @@ public class DbSeeder
                 CreatedAt = DateTime.UtcNow
             };
 
-            _context.Users.AddRange(adminUser, pmUser, fieldTech);
+            // Timesheet workers (week of March 23, 2026)
+            var sergio = new User { Id = "00000000-0000-0000-0000-000000000020", Email = "sergio@fieldmind.io", PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"), Pin = HashPin("11111111"), FirstName = "Sergio", LastName = "", TeamId = team.Id, Role = UserRole.FieldTech, EmailVerified = true, CreatedAt = DateTime.UtcNow };
+            var placido = new User { Id = "00000000-0000-0000-0000-000000000021", Email = "placido@fieldmind.io", PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"), Pin = HashPin("22222222"), FirstName = "Placido", LastName = "", TeamId = team.Id, Role = UserRole.FieldTech, EmailVerified = true, CreatedAt = DateTime.UtcNow };
+            var esau = new User { Id = "00000000-0000-0000-0000-000000000022", Email = "esau@fieldmind.io", PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"), Pin = HashPin("33333333"), FirstName = "Esau", LastName = "", TeamId = team.Id, Role = UserRole.FieldTech, EmailVerified = true, CreatedAt = DateTime.UtcNow };
+            var geobert = new User { Id = "00000000-0000-0000-0000-000000000023", Email = "geobert@fieldmind.io", PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"), Pin = HashPin("44444444"), FirstName = "Geobert", LastName = "", TeamId = team.Id, Role = UserRole.FieldTech, EmailVerified = true, CreatedAt = DateTime.UtcNow };
+            var frank = new User { Id = "00000000-0000-0000-0000-000000000024", Email = "frank@fieldmind.io", PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"), Pin = HashPin("55555555"), FirstName = "Frank", LastName = "", TeamId = team.Id, Role = UserRole.FieldTech, EmailVerified = true, CreatedAt = DateTime.UtcNow };
+            var jaime = new User { Id = "00000000-0000-0000-0000-000000000025", Email = "jaime@fieldmind.io", PasswordHash = BCrypt.Net.BCrypt.HashPassword("password123"), Pin = HashPin("66666666"), FirstName = "Jaime", LastName = "", TeamId = team.Id, Role = UserRole.FieldTech, EmailVerified = true, CreatedAt = DateTime.UtcNow };
+
+            _context.Users.AddRange(adminUser, pmUser, fieldTech, sergio, placido, esau, geobert, frank, jaime);
 
             // 3. Create Buildings
             var building1 = new Building
@@ -573,6 +581,31 @@ public class DbSeeder
 
             _context.TimeEntries.AddRange(timeEntries);
 
+            // Timesheet workers — week of March 23, 2026 (twoWeeksAgoMonday)
+            // Sergio: M8 T8 W8 T6 F9
+            // Placido, Esau, Geobert, Frank, Jaime: M8 T8 W8 T8 F8
+            var sheetWeek = twoWeeksAgoMonday;
+            var timesheetEntries = new List<TimeEntry>();
+            void AddWeek(string userId, double[] hours) {
+                for (int d = 0; d < hours.Length; d++) {
+                    if (hours[d] <= 0) continue;
+                    timesheetEntries.Add(new TimeEntry {
+                        Id = Guid.NewGuid().ToString(), UserId = userId, TeamId = team.Id,
+                        Location = "Downtown Office Complex",
+                        ClockIn = sheetWeek.AddDays(d).AddHours(7),
+                        ClockOut = sheetWeek.AddDays(d).AddHours(7 + hours[d]),
+                        IsApproved = true, CreatedAt = sheetWeek.AddDays(d)
+                    });
+                }
+            }
+            AddWeek(sergio.Id,  new[] { 8.0, 8, 8, 6, 9 });
+            AddWeek(placido.Id, new[] { 8.0, 8, 8, 8, 8 });
+            AddWeek(esau.Id,    new[] { 8.0, 8, 8, 8, 8 });
+            AddWeek(geobert.Id, new[] { 8.0, 8, 8, 8, 8 });
+            AddWeek(frank.Id,   new[] { 8.0, 8, 8, 8, 8 });
+            AddWeek(jaime.Id,   new[] { 8.0, 8, 8, 8, 8 });
+            _context.TimeEntries.AddRange(timesheetEntries);
+
             // 14. Create Alert Rules for Monitoring
             await SeedAlertRules();
 
@@ -582,10 +615,16 @@ public class DbSeeder
             _logger.LogInformation("✅ Database seeded successfully!");
             _logger.LogInformation("Created:");
             _logger.LogInformation("  - 1 Team: Prop-Trax Demo");
-            _logger.LogInformation("  - 3 Users:");
+            _logger.LogInformation("  - 9 Users:");
             _logger.LogInformation("      admin@fieldmind.io  PIN: 12345678  (Admin)");
             _logger.LogInformation("      pm@fieldmind.io     PIN: 87654321  (PM)");
             _logger.LogInformation("      tech@fieldmind.io   PIN: 11223344  (FieldTech)");
+            _logger.LogInformation("      sergio@fieldmind.io PIN: 11111111  (FieldTech)");
+            _logger.LogInformation("      placido@fieldmind.io PIN: 22222222 (FieldTech)");
+            _logger.LogInformation("      esau@fieldmind.io   PIN: 33333333  (FieldTech)");
+            _logger.LogInformation("      geobert@fieldmind.io PIN: 44444444 (FieldTech)");
+            _logger.LogInformation("      frank@fieldmind.io  PIN: 55555555  (FieldTech)");
+            _logger.LogInformation("      jaime@fieldmind.io  PIN: 66666666  (FieldTech)");
             _logger.LogInformation("  - 3 Buildings");
             _logger.LogInformation("  - 3 Projects");
             _logger.LogInformation("  - 3 Folders");

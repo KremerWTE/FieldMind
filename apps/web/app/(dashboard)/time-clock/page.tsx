@@ -33,6 +33,8 @@ export default function TimeClockPage() {
     entry: null,
   });
   const [location, setLocation] = useState('');
+  const [locationOther, setLocationOther] = useState('');
+  const [buildings, setBuildings] = useState<{ id: string; name: string }[]>([]);
   const [notes, setNotes] = useState('');
   const [lateStart, setLateStart] = useState(false);
   const [lateStartTime, setLateStartTime] = useState('');
@@ -69,6 +71,10 @@ export default function TimeClockPage() {
   // Initial load
   useEffect(() => {
     fetchStatus();
+    fetch(`${base}/buildings?limit=100`, { headers: authH() })
+      .then(r => r.json())
+      .then(d => setBuildings(d.data ?? []))
+      .catch(() => {});
   }, []);
 
   // Load timesheet data whenever week changes or tab switches to timesheet
@@ -143,14 +149,15 @@ export default function TimeClockPage() {
   };
 
   const clockIn = async () => {
-    if (!location.trim()) {
-      setMessage({ type: 'error', text: 'Please enter your location.' });
+    const resolvedLocation = location === '__other__' ? locationOther.trim() : location.trim();
+    if (!resolvedLocation) {
+      setMessage({ type: 'error', text: 'Please select or enter your location.' });
       return;
     }
     setSubmitting(true);
     setMessage({ type: '', text: '' });
     try {
-      const body: Record<string, unknown> = { location, notes };
+      const body: Record<string, unknown> = { location: resolvedLocation, notes };
       if (lateStart && lateStartTime) {
         body.clockInTime = new Date(lateStartTime).toISOString();
       }
@@ -294,19 +301,37 @@ export default function TimeClockPage() {
 
           {/* Form */}
           <div className="bg-white border border-gray-200 rounded-lg p-5 mb-8">
+            {!status.isClockedIn && [0, 6].includes(clock.getDay()) && (
+              <div className="mb-3 p-2.5 bg-orange-50 border border-orange-200 text-orange-700 text-sm rounded-md">
+                Weekend — hours clocked today will be marked as <strong>overtime</strong>.
+              </div>
+            )}
             {!status.isClockedIn && (
               <>
                 <div className="mb-3">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Location <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    placeholder="e.g. 123 Main St, Site 4"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  >
+                    <option value="">— Select a location —</option>
+                    {buildings.map(b => (
+                      <option key={b.id} value={b.name}>{b.name}</option>
+                    ))}
+                    <option value="__other__">Other…</option>
+                  </select>
+                  {location === '__other__' && (
+                    <input
+                      type="text"
+                      value={locationOther}
+                      onChange={(e) => setLocationOther(e.target.value)}
+                      placeholder="Enter custom location"
+                      className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  )}
                 </div>
                 <div className="mb-3">
                   <label className="flex items-center gap-2 cursor-pointer select-none w-fit">

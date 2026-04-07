@@ -430,6 +430,9 @@ public class TimeController : ControllerBase
             .FirstOrDefaultAsync(p => p.TeamId == teamId && p.PeriodStart == mondayUtc);
     }
 
+    private static bool IsWeekend(DateTime dt) =>
+        dt.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+
     private static object MapEntry(TimeEntry e, User? user) => new
     {
         id           = e.Id,
@@ -441,6 +444,7 @@ public class TimeController : ControllerBase
         location     = e.Location,
         notes        = e.Notes,
         isApproved   = e.IsApproved,
+        isOvertime   = IsWeekend(e.ClockIn),
         durationHours = e.DurationHours.HasValue ? Math.Round(e.DurationHours.Value, 2) : (double?)null,
         createdAt    = e.CreatedAt,
     };

@@ -1,6 +1,6 @@
 # FieldMind TODO — Current Status
 
-**Last Updated:** April 3, 2026
+**Last Updated:** April 10, 2026
 **Status:** Feature-Complete + CI Green — Production Deployment Next
 
 ---
@@ -126,12 +126,16 @@
 
 ### 1. Local Development Environment
 ```bash
-# Install Docker Desktop first, then:
-docker compose up -d                    # Start TimescaleDB + Seq + Grafana
-cd apps/api && dotnet run               # API auto-migrates on first start
-cd apps/web && npm run dev              # Next.js dev server
-cd apps/mobile && npx expo start        # Expo dev server
+# SQLite is configured by default — no Docker needed for basic local dev
+cd apps/api && dotnet run --launch-profile http   # API → http://localhost:3001
+cd apps/web && npm run dev                         # Web → http://localhost:3000
+cd apps/mobile && npx expo start                   # Expo dev server
+
+# Optional: start monitoring stack (requires Docker Desktop)
+docker compose up -d                    # TimescaleDB + Seq + Grafana
 ```
+
+**⚠ Pre-production fix needed:** Hangfire uses in-memory job storage. Switch to `Hangfire.PostgreSql` before deploying — jobs are lost on API restart with current config.
 
 ### 2. Production Deployment (see docs/DEPLOYMENT.md)
 - [ ] Azure App Service — push Docker image from ACR
@@ -192,5 +196,5 @@ cd apps/mobile && npx expo start        # Expo dev server
 
 ---
 
-**Last Session:** April 2, 2026
+**Last Session:** April 10, 2026
 **Status:** ✅ Feature-Complete — all code written, production deployment is the only remaining work

@@ -25,6 +25,7 @@ interface Entry {
   notes: string | null;
   isApproved: boolean;
   durationHours: number | null;
+  isOvertime?: boolean;
 }
 
 interface EmployeeSummary {

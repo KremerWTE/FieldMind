@@ -1,8 +1,8 @@
 # FieldMind Master TODO & Project Roadmap
 
 **Project:** FieldMind - AI-Powered Property Intelligence Platform
-**Version:** 1.4
-**Last Updated:** April 3, 2026
+**Version:** 1.5
+**Last Updated:** April 10, 2026
 **Overall Status:** 🎉 **FEATURE-COMPLETE — Production Deployment Next**
 
 ---
@@ -79,8 +79,9 @@ All phases through the web dashboard are 100% complete. See previous session not
 All code is written. This phase is entirely manual cloud/infra setup.
 
 #### Infrastructure Setup
-- [ ] Install Docker Desktop (local dev prerequisite)
-- [ ] `docker compose up -d` → verify TimescaleDB + Seq + Grafana healthy
+- [x] Local dev confirmed working with SQLite — no Docker needed for development
+- [ ] `docker compose up -d` → verify TimescaleDB + Seq + Grafana healthy (for monitoring stack only)
+- [ ] **Switch Hangfire to persistent storage** (`Hangfire.PostgreSql`) — in-memory storage loses jobs on API restart
 - [ ] Cloud platform: Azure App Service (Linux, B2 plan) for API
 - [ ] Azure PostgreSQL Flexible Server (PostgreSQL 16 + TimescaleDB extension)
 - [ ] AWS S3 bucket (`fieldmind-photos-prod`) + IAM user with S3 policy
@@ -164,6 +165,12 @@ All code is written. This phase is entirely manual cloud/infra setup.
 - ✅ PropTrax webhook team-query bug fixed
 - ✅ Production env URLs in EAS build config
 
+### Audit Findings (2026-04-10)
+- ⚠ Hangfire uses in-memory storage — jobs lost on API restart; switch to `Hangfire.PostgreSql` before production
+- ⚠ Supervisor timecard missing: pay rate, REG/OT split, gross pay calculation
+- ℹ Local dev confirmed working with SQLite — no Docker Desktop required
+- ℹ Two remote branches: `kremer-dev` (real) and `Kremer-Dev` (stale, only initial commit) — clean up GitHub
+
 ---
 
 ## 🏆 Project Milestones
@@ -209,6 +216,6 @@ All code is written. This phase is entirely manual cloud/infra setup.
 
 ---
 
-**Last Updated:** April 3, 2026
+**Last Updated:** April 10, 2026
 **Next Review:** After production deployment
 **Status:** ✅ **FEATURE-COMPLETE — CI GREEN — PRODUCTION DEPLOYMENT IS THE ONLY REMAINING WORK**
